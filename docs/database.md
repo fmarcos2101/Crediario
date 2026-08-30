@@ -6,9 +6,11 @@ PostgreSQL 16. ORM: Drizzle. IDs internos: UUIDv7. Dinheiro: `NUMERIC(14,2)`. Ve
 
 - `pgcrypto` — gerada no bootstrap local e na primeira migration.
 
-## Fase 1
+## Fase 2
 
-Nenhuma tabela de domínio ainda. O pacote `@crediplus/db` já gera e aplica migrations. Tabelas de identidade entram na Fase 2.
+Tabelas de identidade: `users`, `sessions`, `user_totp`, `login_challenges`, `password_reset_tokens`, `login_attempts`, `security_events`.
+
+Senha: Argon2id. Sessão: token opaco (SHA-256 no banco). TOTP do Super Admin com secret em AES-256-GCM.
 
 ## Modelo previsto (não migrado nesta fase)
 
