@@ -1,4 +1,7 @@
 import {
+  and,
+  eq,
+  isNull,
   loginAttempts,
   loginChallenges,
   passwordResetTokens,
@@ -6,9 +9,8 @@ import {
   sessions,
   userTotp,
   users,
+  type Database,
 } from '@crediplus/db';
-import { and, eq, isNull } from 'drizzle-orm';
-import type { Database } from '@crediplus/db';
 import type {
   AuthRepository,
   ChallengeRecord,
@@ -89,6 +91,13 @@ export class DrizzleAuthRepository implements AuthRepository {
       .update(sessions)
       .set({ revokedAt: at })
       .where(and(eq(sessions.userId, userId), isNull(sessions.revokedAt)));
+  }
+
+  async revokeSessionsByTenant(tenantId: string, at: Date): Promise<void> {
+    await this.db
+      .update(sessions)
+      .set({ revokedAt: at })
+      .where(and(eq(sessions.tenantId, tenantId), isNull(sessions.revokedAt)));
   }
 
   async findTotp(userId: string): Promise<TotpRecord | null> {

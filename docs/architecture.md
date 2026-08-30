@@ -45,4 +45,4 @@ Domínio público ainda não existe. CORS, cookies e e-mail usam variáveis (`AP
 
 ## Fases
 
-A Fase 1 entrega só a base: monorepo, Compose, health, Drizzle, CI e documentação. Auth é a Fase 2.
+Fase 1: infraestrutura. Fase 2: autenticação. Fase 3: tenancy + RLS + convite + Super Admin de empresas. Clientes entram na Fase 5.

@@ -41,6 +41,7 @@ export const sessions = pgTable(
     idleExpiresAt: timestamp('idle_expires_at', { withTimezone: true }).notNull(),
     lastUsedAt: timestamp('last_used_at', { withTimezone: true }).notNull(),
     revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    tenantId: uuid('tenant_id'),
     ipAddress: varchar('ip_address', { length: 64 }),
     userAgent: varchar('user_agent', { length: 512 }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -48,6 +49,7 @@ export const sessions = pgTable(
   (table) => [
     uniqueIndex('sessions_token_hash_uidx').on(table.tokenHash),
     index('sessions_user_id_idx').on(table.userId),
+    index('sessions_tenant_id_idx').on(table.tenantId),
   ],
 );
 

@@ -10,6 +10,10 @@ type LoginResponse = {
   user?: { email: string; isSuperAdmin: boolean };
 };
 
+function destinationFor(user?: { isSuperAdmin: boolean }): string {
+  return user?.isSuperAdmin ? '/admin' : '/app';
+}
+
 export function LoginForm() {
   const router = useRouter();
   const [email, setEmail] = useState('');
@@ -38,7 +42,7 @@ export function LoginForm() {
         setChallengeToken(body.challengeToken);
         return;
       }
-      router.replace('/admin');
+      router.replace(destinationFor('user' in body ? body.user : undefined));
     } catch {
       setError('Não foi possível entrar.');
     } finally {
@@ -58,11 +62,13 @@ export function LoginForm() {
         method: 'POST',
         body: JSON.stringify({ challengeToken, code }),
       });
+      const body = (await response.json()) as
+        LoginResponse | { error?: { message: string } };
       if (!response.ok) {
-        setError(await readApiError(response));
+        setError(await messageFrom(response, body));
         return;
       }
-      router.replace('/admin');
+      router.replace(destinationFor('user' in body ? body.user : undefined));
     } catch {
       setError('Não foi possível validar o código.');
     } finally {

@@ -17,6 +17,7 @@ import {
   loginSchema,
   resetPasswordSchema,
   totpSchema,
+  acceptInviteSchema,
 } from '@crediplus/shared';
 import type { z } from 'zod';
 import {
@@ -29,6 +30,7 @@ import { APP_ENV } from '../../config/env.token';
 import { AuthService, type LoginSuccess } from './auth.service';
 import { CsrfGuard } from './csrf.guard';
 import { SessionGuard, type AuthedRequest } from './session.guard';
+import { TenantService } from '../tenants/tenant.service';
 
 function parse<T>(schema: z.ZodType<T>, body: unknown): T {
   const result = schema.safeParse(body);
@@ -50,6 +52,7 @@ function clientContext(request: FastifyRequest) {
 export class AuthController {
   constructor(
     private readonly auth: AuthService,
+    private readonly tenants: TenantService,
     @Inject(APP_ENV) private readonly env: AppEnv,
   ) {}
 
@@ -120,6 +123,13 @@ export class AuthController {
   async reset(@Body() body: unknown, @Req() request: FastifyRequest) {
     const input = parse(resetPasswordSchema, body);
     await this.auth.resetPassword(input.token, input.password, clientContext(request));
+    return { ok: true };
+  }
+
+  @Post('invite/accept')
+  async acceptInvite(@Body() body: unknown) {
+    const input = parse(acceptInviteSchema, body);
+    await this.tenants.acceptInvite(input.token, input.password);
     return { ok: true };
   }
 

@@ -69,6 +69,14 @@ export class MemoryAuthRepository implements AuthRepository {
     }
   }
 
+  async revokeSessionsByTenant(tenantId: string, at: Date): Promise<void> {
+    for (const session of this.sessions) {
+      if (session.tenantId === tenantId && !session.revokedAt) {
+        session.revokedAt = at;
+      }
+    }
+  }
+
   async findTotp(userId: string): Promise<TotpRecord | null> {
     return this.totp.find((item) => item.userId === userId) ?? null;
   }

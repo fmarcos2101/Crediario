@@ -15,6 +15,13 @@
       "when": 1788051284515,
       "tag": "0001_productive_northstar",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788062445168,
+      "tag": "0002_absurd_shotgun",
+      "breakpoints": true
     }
   ]
 }

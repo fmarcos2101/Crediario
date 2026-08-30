@@ -33,7 +33,12 @@ export {
   publicUserSchema,
   resetPasswordSchema,
   totpSchema,
+  createTenantSchema,
+  acceptInviteSchema,
+  updateTenantSettingsSchema,
   type LoginInput,
   type PublicUser,
   type TotpInput,
+  type CreateTenantInput,
+  type AcceptInviteInput,
 } from './auth';

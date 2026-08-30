@@ -3,6 +3,8 @@ import { Secret, TOTP } from 'otpauth';
 import { describe, expect, it } from 'vitest';
 import { decryptString } from '../../common/crypto';
 import { ConsoleEmailProvider } from '../email/email.provider';
+import { MemoryTenantRepository } from '../tenants/memory-tenant.repository';
+import { TenantService } from '../tenants/tenant.service';
 import { AuthService } from './auth.service';
 import { MemoryAuthRepository } from './memory-auth.repository';
 
@@ -119,6 +121,49 @@ describe('AuthService', () => {
     ).rejects.toMatchObject({
       status: 401,
     });
+  });
+
+  it('só autentica usuário de empresa após liberação', async () => {
+    const repo = new MemoryAuthRepository();
+    const tenants = new MemoryTenantRepository();
+    const email = new ConsoleEmailProvider();
+    const tenantService = new TenantService(
+      tenants,
+      repo,
+      email,
+      'http://localhost:3000',
+    );
+    const auth = new AuthService(
+      repo,
+      {
+        APP_ORIGIN: 'http://localhost:3000',
+        APP_ENCRYPTION_KEY: ENCRYPTION_KEY,
+        SESSION_TTL_HOURS: 12,
+        SUPERADMIN_SESSION_TTL_HOURS: 4,
+        SUPERADMIN_IDLE_MINUTES: 30,
+      },
+      email,
+      tenantService,
+    );
+
+    const created = await tenantService.createCompany('Loja A', 'dono@loja-a.test');
+    const token = email.sent[0]?.text.match(/token=([^&\s]+)/)?.[1];
+    expect(token).toBeTruthy();
+    await tenantService.acceptInvite(decodeURIComponent(token!), 'senha-loja-a12');
+
+    await expect(
+      auth.login('dono@loja-a.test', 'senha-loja-a12', ctx),
+    ).rejects.toMatchObject({ status: 403 });
+
+    await tenantService.setCompanyStatus(created.tenantId, 'active');
+    const session = await auth.login('dono@loja-a.test', 'senha-loja-a12', ctx);
+    expect(session.kind).toBe('session');
+    if (session.kind !== 'session') {
+      return;
+    }
+    expect(session.user.isSuperAdmin).toBe(false);
+    expect(session.user.tenantName).toBe('Loja A');
+    expect(session.user.tenantStatus).toBe('active');
   });
 
   it('aplica rate limit no login', async () => {

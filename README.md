@@ -6,9 +6,9 @@ Acesso **somente por convite**. Não existe cadastro público.
 
 ## Fase atual
 
-**Fase 1 — infraestrutura** e **Fase 2 — autenticação** (sessão opaca, TOTP do Super Admin, reset de senha).
+**Fase 1 — infraestrutura**, **Fase 2 — autenticação** (sessão opaca, TOTP do Super Admin) e **Fase 3 — multiempresa** (tenants, RLS, convite, Super Admin libera a empresa).
 
-Auth, tenants e o restante do produto entram nas fases seguintes. Ver `docs/architecture.md`.
+Clientes, vendas e o restante entram nas fases seguintes. Ver `docs/architecture.md`.
 
 ## Requisitos
 
@@ -27,9 +27,9 @@ pnpm bootstrap:superadmin   # cria Super Admin; imprime URL otpauth
 pnpm dev
 ```
 
-- Web: http://localhost:3000
+- Web: http://localhost:3000 — `/login`, `/admin` (Super Admin), `/app` (empresa), `/convite`
 - API: http://localhost:4000/api/v1/health
-- Mailpit: http://localhost:8025
+- Mailpit: http://localhost:8025 (link do convite)
 - MinIO: http://localhost:9001
 
 ## Scripts

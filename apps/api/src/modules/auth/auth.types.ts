@@ -18,6 +18,7 @@ export type SessionRecord = {
   idleExpiresAt: Date;
   lastUsedAt: Date;
   revokedAt: Date | null;
+  tenantId: string | null;
 };
 
 export type TotpRecord = {
@@ -52,6 +53,7 @@ export type AuthRepository = {
   touchSession(sessionId: string, lastUsedAt: Date, idleExpiresAt: Date): Promise<void>;
   revokeSession(sessionId: string, at: Date): Promise<void>;
   revokeAllUserSessions(userId: string, at: Date): Promise<void>;
+  revokeSessionsByTenant(tenantId: string, at: Date): Promise<void>;
   findTotp(userId: string): Promise<TotpRecord | null>;
   upsertTotp(record: TotpRecord, enabledAt: Date): Promise<void>;
   createChallenge(challenge: ChallengeRecord): Promise<void>;
@@ -79,10 +81,20 @@ export type AuthRepository = {
   }): Promise<void>;
 };
 
-export function toPublicUser(user: UserRecord): PublicUser {
+export function toPublicUser(
+  user: UserRecord,
+  tenant?: {
+    id: string;
+    name: string;
+    status: import('@crediplus/shared').TenantStatus;
+  } | null,
+): PublicUser {
   return {
     id: user.id,
     email: user.email,
     isSuperAdmin: user.isSuperAdmin,
+    tenantId: tenant?.id ?? null,
+    tenantName: tenant?.name ?? null,
+    tenantStatus: tenant?.status ?? null,
   };
 }

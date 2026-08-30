@@ -11,9 +11,10 @@ import {
   verifyPassword,
 } from '../../common/crypto';
 import { MemoryRateLimiter } from '../../common/rate-limit';
+import type { EmailProvider } from '../email/email.provider';
 import type { AuthRepository, SessionRecord, UserRecord } from './auth.types';
 import { toPublicUser } from './auth.types';
-import type { EmailProvider } from '../email/email.provider';
+import type { TenantService } from '../tenants/tenant.service';
 
 const INVALID = 'Credenciais inválidas.';
 const RATE_LIMITED = 'Muitas tentativas. Tente novamente em alguns minutos.';
@@ -56,6 +57,7 @@ export class AuthService {
     private readonly repo: AuthRepository,
     private readonly env: AuthEnv,
     private readonly email: EmailProvider,
+    private readonly tenants: TenantService | null = null,
     private readonly loginLimiter = new MemoryRateLimiter(15 * 60 * 1000, 5),
     private readonly resetLimiter = new MemoryRateLimiter(60 * 60 * 1000, 5),
     private readonly now: () => Date = () => new Date(),
@@ -116,7 +118,15 @@ export class AuthService {
       return { kind: 'totp', challengeToken };
     }
 
-    return this.issueSession(user, ctx);
+    if (!this.tenants) {
+      throw new HttpException(INVALID, HttpStatus.UNAUTHORIZED);
+    }
+    const membership = await this.tenants.requireActiveMembership(user.id);
+    return this.issueSession(user, ctx, {
+      id: membership.tenantId,
+      name: membership.tenantName,
+      status: membership.tenantStatus,
+    });
   }
 
   async verifyTotp(
@@ -158,7 +168,7 @@ export class AuthService {
     }
 
     await this.repo.consumeChallenge(challenge.id, this.now());
-    return this.issueSession(user, ctx);
+    return this.issueSession(user, ctx, null);
   }
 
   async logout(sessionId: string, ctx: LoginContext, userId: string): Promise<void> {
@@ -187,7 +197,26 @@ export class AuthService {
       ? this.env.SUPERADMIN_IDLE_MINUTES * 60 * 1000
       : IDLE_TENANT_MS;
     await this.repo.touchSession(session.id, now, new Date(now.getTime() + idleMs));
-    return { user: toPublicUser(user), session };
+    if (user.isSuperAdmin) {
+      return { user: toPublicUser(user), session };
+    }
+    const membership = await this.tenants?.peekMembership(user.id);
+    if (
+      !membership ||
+      membership.memberStatus !== 'active' ||
+      membership.tenantStatus !== 'active'
+    ) {
+      await this.repo.revokeSession(session.id, now);
+      return null;
+    }
+    return {
+      user: toPublicUser(user, {
+        id: membership.tenantId,
+        name: membership.tenantName,
+        status: membership.tenantStatus,
+      }),
+      session,
+    };
   }
 
   async forgotPassword(emailRaw: string, ctx: LoginContext): Promise<void> {
@@ -274,7 +303,15 @@ export class AuthService {
     return { email, otpauthUrl: totp.toString() };
   }
 
-  private async issueSession(user: UserRecord, ctx: LoginContext): Promise<LoginSuccess> {
+  private async issueSession(
+    user: UserRecord,
+    ctx: LoginContext,
+    tenant: {
+      id: string;
+      name: string;
+      status: import('@crediplus/shared').TenantStatus;
+    } | null,
+  ): Promise<LoginSuccess> {
     const now = this.now();
     const ttlHours = user.isSuperAdmin
       ? this.env.SUPERADMIN_SESSION_TTL_HOURS
@@ -294,11 +331,12 @@ export class AuthService {
       idleExpiresAt: new Date(now.getTime() + idleMs),
       lastUsedAt: now,
       revokedAt: null,
+      tenantId: tenant?.id ?? null,
     });
     await this.security(user.id, 'LOGIN', ctx);
     return {
       kind: 'session',
-      user: toPublicUser(user),
+      user: toPublicUser(user, tenant),
       sessionToken,
       csrfToken,
       expiresAt,
