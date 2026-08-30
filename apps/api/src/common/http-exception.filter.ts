@@ -29,7 +29,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
         : 'Erro interno. Tente novamente.';
 
     const code =
-      exception instanceof HttpException && status < 500
+      exception instanceof HttpException
         ? this.codeFromStatus(status)
         : 'INTERNAL_ERROR';
 
@@ -95,6 +95,9 @@ export class HttpExceptionFilter implements ExceptionFilter {
     }
     if (status === HttpStatus.NOT_FOUND) {
       return 'NOT_FOUND';
+    }
+    if (status >= 500) {
+      return 'INTERNAL_ERROR';
     }
     return 'REQUEST_FAILED';
   }

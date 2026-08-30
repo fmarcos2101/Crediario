@@ -11,7 +11,7 @@
     "experimentalDecorators": true,
     "exactOptionalPropertyTypes": false,
     "target": "ES2022",
-    "incremental": true
+    "incremental": false
   },
   "include": ["src/**/*.ts"],
   "exclude": ["src/**/*.test.ts"]
