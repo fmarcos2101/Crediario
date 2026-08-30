@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { PGlite } from '@electric-sql/pglite';
 import { describe, expect, it } from 'vitest';
 
-const drizzleDir = join(dirname(fileURLToPath(import.meta.url)), '../../drizzle');
+const drizzleDir = join(dirname(fileURLToPath(import.meta.url)), '../drizzle');
 
 function loadSql(name: string): string[] {
   const path = join(drizzleDir, name);
@@ -20,11 +20,7 @@ function loadSql(name: string): string[] {
 describe('RLS isolamento multi-tenant', () => {
   it('Tenant A não lê settings de Tenant B', async () => {
     const db = new PGlite();
-    const files = [
-      '0000_enable_pgcrypto.sql',
-      '0001_productive_northstar.sql',
-      '0002_absurd_shotgun.sql',
-    ];
+    const files = ['0001_productive_northstar.sql', '0002_absurd_shotgun.sql'];
     for (const file of files) {
       for (const statement of loadSql(file)) {
         await db.exec(statement);
