@@ -5,6 +5,7 @@ import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
 import cors from '@fastify/cors';
+import cookie from '@fastify/cookie';
 import helmet from '@fastify/helmet';
 import { config as loadDotEnv } from 'dotenv';
 import { API_PREFIX, PRODUCT_NAME } from '@crediplus/shared';
@@ -43,6 +44,8 @@ async function bootstrap(): Promise<void> {
     global: true,
     contentSecurityPolicy: false,
   });
+
+  await app.register(cookie);
 
   await app.register(cors, {
     origin: env.CORS_ORIGINS,

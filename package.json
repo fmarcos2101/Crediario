@@ -16,6 +16,7 @@
     "db:generate": "pnpm --filter @crediplus/db generate",
     "db:migrate": "pnpm --filter @crediplus/db migrate",
     "db:studio": "pnpm --filter @crediplus/db studio",
+    "bootstrap:superadmin": "pnpm --filter @crediplus/api bootstrap:superadmin",
     "infra:up": "docker compose -f infra/docker-compose.yml up -d",
     "infra:down": "docker compose -f infra/docker-compose.yml down",
     "infra:logs": "docker compose -f infra/docker-compose.yml logs -f"
@@ -27,6 +28,7 @@
   },
   "pnpm": {
     "onlyBuiltDependencies": [
+      "argon2",
       "esbuild",
       "unrs-resolver"
     ],

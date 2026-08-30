@@ -8,6 +8,13 @@
       "when": 1756512000000,
       "tag": "0000_enable_pgcrypto",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1788051284515,
+      "tag": "0001_productive_northstar",
+      "breakpoints": true
     }
   ]
 }

@@ -1,14 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { AppEnv } from '../../config/env';
+import { loadEnv } from '../../config/env';
 import { HealthService } from './health.service';
 
-const env: AppEnv = {
-  NODE_ENV: 'test',
-  API_PORT: 4000,
-  APP_ORIGIN: 'http://localhost:3000',
-  API_ORIGIN: 'http://localhost:4000',
-  CORS_ORIGINS: ['http://localhost:3000'],
-};
+const env: AppEnv = loadEnv({ NODE_ENV: 'test' });
 
 describe('HealthService', () => {
   it('liveness não consulta dependências', () => {

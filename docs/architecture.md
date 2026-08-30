@@ -45,4 +45,4 @@ Domínio público ainda não existe. CORS, cookies e e-mail usam variáveis (`AP
 
 ## Fases
 
-A Fase 1 entrega só a base: monorepo, Compose, health, Drizzle, CI e documentação. Auth começa na Fase 2.
+A Fase 1 entrega só a base: monorepo, Compose, health, Drizzle, CI e documentação. Auth é a Fase 2.

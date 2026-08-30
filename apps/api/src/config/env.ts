@@ -1,5 +1,10 @@
 import { z } from 'zod';
 
+const booleanFromEnv = z
+  .enum(['true', 'false'])
+  .default('false')
+  .transform((value) => value === 'true');
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   API_PORT: z.coerce.number().int().min(1).max(65535).default(4000),
@@ -16,6 +21,15 @@ const envSchema = z.object({
     ),
   DATABASE_URL: z.string().min(1).optional(),
   REDIS_URL: z.string().min(1).optional(),
+  COOKIE_SECURE: booleanFromEnv,
+  COOKIE_DOMAIN: z.string().optional(),
+  SESSION_TTL_HOURS: z.coerce.number().positive().default(12),
+  SUPERADMIN_SESSION_TTL_HOURS: z.coerce.number().positive().default(4),
+  SUPERADMIN_IDLE_MINUTES: z.coerce.number().positive().default(30),
+  APP_ENCRYPTION_KEY: z.string().min(1).optional(),
+  EMAIL_FROM: z.string().default('CrediPlus <dev@localhost>'),
+  BOOTSTRAP_SUPERADMIN_EMAIL: z.string().default(''),
+  BOOTSTRAP_SUPERADMIN_PASSWORD: z.string().default(''),
 });
 
 export type AppEnv = z.infer<typeof envSchema>;

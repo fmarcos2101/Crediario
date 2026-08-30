@@ -6,7 +6,7 @@ Acesso **somente por convite**. Não existe cadastro público.
 
 ## Fase atual
 
-**Fase 1 — infraestrutura.** Monorepo, API de health, frontend inicial, Postgres/Redis/MinIO/Mailpit via Compose, Drizzle, CI.
+**Fase 1 — infraestrutura** e **Fase 2 — autenticação** (sessão opaca, TOTP do Super Admin, reset de senha).
 
 Auth, tenants e o restante do produto entram nas fases seguintes. Ver `docs/architecture.md`.
 
@@ -23,6 +23,7 @@ pnpm install
 cp .env.example .env
 pnpm infra:up
 pnpm db:migrate
+pnpm bootstrap:superadmin   # cria Super Admin; imprime URL otpauth
 pnpm dev
 ```
 

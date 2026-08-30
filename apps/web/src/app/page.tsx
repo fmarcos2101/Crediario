@@ -20,7 +20,7 @@ export default async function HomePage() {
           <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
             Interface
           </dt>
-          <dd className="mt-1 text-sm text-slate-800">pt-BR · Fase 1 (infraestrutura)</dd>
+          <dd className="mt-1 text-sm text-slate-800">pt-BR · Fase 2 (autenticação)</dd>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
           <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
@@ -37,6 +37,11 @@ export default async function HomePage() {
           </dd>
         </div>
       </dl>
+      <p className="mt-10 text-sm">
+        <a className="font-medium text-teal-800 underline" href="/login">
+          Entrar
+        </a>
+      </p>
     </main>
   );
 }
