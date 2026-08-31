@@ -48,6 +48,7 @@ export class TenantService {
         name: name.trim(),
         status: 'pending_setup',
         customerCount: 0,
+        saleCount: 0,
         createdAt: now,
         updatedAt: now,
       });

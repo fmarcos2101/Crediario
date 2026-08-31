@@ -56,6 +56,7 @@ export class DrizzleTenantRepository implements TenantRepository {
           status: tenants.status,
           createdAt: tenants.createdAt,
           customerCount: tenants.customerCount,
+          saleCount: tenants.saleCount,
           paymentConfigured: tenantSettings.paymentConfigured,
           metaConfigured: tenantSettings.metaConfigured,
           memberEmail: users.email,
@@ -81,6 +82,7 @@ export class DrizzleTenantRepository implements TenantRepository {
             createdAt: row.createdAt,
             lastAccessAt: null,
             customerCount: row.customerCount,
+            saleCount: row.saleCount,
             paymentConfigured: row.paymentConfigured ?? false,
             metaConfigured: row.metaConfigured ?? false,
           });

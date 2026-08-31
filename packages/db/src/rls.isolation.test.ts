@@ -24,6 +24,7 @@ describe('RLS isolamento multi-tenant', () => {
       '0001_productive_northstar.sql',
       '0002_absurd_shotgun.sql',
       '0003_nifty_hulk.sql',
+      '0004_bright_sister_grimm.sql',
     ];
     for (const file of files) {
       for (const statement of loadSql(file)) {
@@ -55,6 +56,12 @@ describe('RLS isolamento multi-tenant', () => {
         ('dddddddd-dddd-4ddd-8ddd-dddddddddddd', '${tenantB}', 'Maria B', 'hmac-b', 'cipher-b');
       INSERT INTO tenant_secrets (tenant_id, payment_api_key_ciphertext)
       VALUES ('${tenantA}', 'cipher-pay-a'), ('${tenantB}', 'cipher-pay-b');
+      INSERT INTO sales (
+        id, tenant_id, customer_id, status, total_amount, down_payment,
+        financed_amount, installment_count, first_due_date
+      ) VALUES
+        ('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', '${tenantA}', 'cccccccc-cccc-4ccc-8ccc-cccccccccccc', 'open', '100.00', '0.00', '100.00', 1, '2026-04-01'),
+        ('ffffffff-ffff-4fff-8fff-ffffffffffff', '${tenantB}', 'dddddddd-dddd-4ddd-8ddd-dddddddddddd', 'open', '200.00', '0.00', '200.00', 1, '2026-04-01');
     `);
 
     await db.exec(`SET ROLE crediplus_app`);
@@ -97,6 +104,11 @@ describe('RLS isolamento multi-tenant', () => {
     );
     expect(foreignSecrets.rows).toEqual([]);
 
+    const ownSales = await db.query<{ id: string }>('SELECT id FROM sales');
+    expect(ownSales.rows.map((row) => row.id)).toEqual([
+      'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+    ]);
+
     await db.exec(`SELECT set_config('app.is_super_admin', 'true', false)`);
     await db.exec(`SELECT set_config('app.current_tenant_id', '', false)`);
     const superCustomers = await db.query<{ name: string }>('SELECT name FROM customers');
@@ -105,6 +117,8 @@ describe('RLS isolamento multi-tenant', () => {
       'SELECT tenant_id FROM tenant_secrets',
     );
     expect(superSecrets.rows).toEqual([]);
+    const superSales = await db.query<{ id: string }>('SELECT id FROM sales');
+    expect(superSales.rows).toEqual([]);
 
     await db.exec('RESET ROLE');
     await db.close();

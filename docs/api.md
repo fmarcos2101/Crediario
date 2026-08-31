@@ -93,7 +93,7 @@ Campos (todos opcionais no PATCH):
 - Pagamento: `paymentProvider`, `paymentApiKey`, `paymentWebhookSecret`, `clearPaymentSecrets`
 - Meta/WhatsApp: `metaPhoneNumberId`, `metaWabaId`, `metaAccessToken`, `metaAppSecret`, `clearMetaSecrets`
 
-Chaves são write-only. A resposta só traz flags (`paymentConfigured`, `metaConfigured`) e IDs públicos. Ciphertext nunca sai da API. O envio automático das mensagens entra com as parcelas (Fase 6+).
+Chaves são write-only. A resposta só traz flags (`paymentConfigured`, `metaConfigured`) e IDs públicos. Ciphertext nunca sai da API. O envio automático das mensagens entra depois das parcelas (cobrança/jobs).
 
 ## Fase 5 — Clientes
 
@@ -109,6 +109,21 @@ Sem RG e sem data de nascimento. CPF: HMAC de busca + AES-256-GCM. Sem `DELETE` 
 
 Lista: `?q=` nome (`ilike`) ou CPF (HMAC). `?status=active|archived`. Lista mascara o CPF (`cpfMasked`); o detalhe devolve o CPF formatado. Tenant B pedindo id de Tenant A recebe **404**. CPF ativo duplicado no mesmo tenant: **409**.
 
+## Fase 6 — Vendas, parcelas e pagamentos
+
+| Método | Rota                                            | Auth                    |
+| ------ | ----------------------------------------------- | ----------------------- |
+| GET    | `/api/v1/sales`                                 | sessão de tenant        |
+| GET    | `/api/v1/sales/:id`                             | sessão de tenant; 404   |
+| POST   | `/api/v1/sales`                                 | sessão de tenant + CSRF |
+| POST   | `/api/v1/sales/:id/cancel`                      | sessão de tenant + CSRF |
+| POST   | `/api/v1/sales/:id/payments`                    | sessão de tenant + CSRF |
+| POST   | `/api/v1/sales/:id/payments/:paymentId/reverse` | sessão de tenant + CSRF |
+
+`POST /sales` corpo: `{ customerId, items: [{ description, quantity, unitPrice }], downPayment?, installmentCount, frequency?, firstDueDate, notes? }`. Frequência default `monthly`. UI do MVP só oferece mensal. Total = soma dos itens. Entrada < total. Financiado é dividido; a última parcela absorve centavos.
+
+Pagamento é evento imutável. Estorno é um evento novo (`payment_reversals`), nunca apaga o pagamento. Não há `DELETE`. Encargos configurados na empresa **não** entram no valor da parcela. Tenant B: **404**. Super Admin não lê vendas. Pagamento acima do saldo: **400**. Venda cancelada ou com baixa: **409**.
+
 ## Próximas fases
 
-`/sales`, `/installments`, `/payments`, `/documents`, `/signatures`.
+`/documents`, `/signatures`.

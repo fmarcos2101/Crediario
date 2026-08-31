@@ -60,7 +60,7 @@ Tudo isso é editável no painel da empresa (`/app/configuracoes`). O Super Admi
 
 Role da aplicação sem `BYPASSRLS`. `SET LOCAL` via `set_config(..., true)` na mesma transação da query (`applyRlsContext`).
 
-Tabelas com `ENABLE` + `FORCE ROW LEVEL SECURITY`: `tenants`, `tenant_settings`, `tenant_users`, `tenant_invites`, `customers`, `tenant_secrets`.
+Tabelas com `ENABLE` + `FORCE ROW LEVEL SECURITY`: `tenants`, `tenant_settings`, `tenant_users`, `tenant_invites`, `customers`, `tenant_secrets`, `sales`, `sale_items`, `installments`, `payments`, `payment_reversals`.
 
 Contexto: `app.current_tenant_id`, `app.is_super_admin`, `app.current_user_id`, `app.invite_token_hash`.
 
@@ -88,11 +88,21 @@ Sem RG e sem data de nascimento no MVP.
 
 Único por tenant em `(tenant_id, cpf_hmac)`. Recadastro do mesmo CPF reativa o arquivo. Trigger `sync_tenant_customer_count` atualiza `tenants.customer_count` (ativos).
 
-## Vendas e dinheiro (ainda não migrado)
+## Vendas e dinheiro (Fase 6)
 
-`sales`, `sale_items`, `sale_status_history`, `installments`, `installment_status_history`, `payments` (imutável), `payment_reversals` (estorno = novo evento).
+| Tabela              | Função                                                          |
+| ------------------- | --------------------------------------------------------------- |
+| `sales`             | Venda. Status `open` \| `cancelled`. Totais em `NUMERIC(14,2)`. |
+| `sale_items`        | Itens. `line_total` calculado no servidor.                      |
+| `installments`      | Parcelas. Vencimento `DATE`. `paid_amount` líquido.             |
+| `payments`          | Baixa. Imutável (sem update de valor, sem delete).              |
+| `payment_reversals` | Estorno = evento novo.                                          |
 
-Frequência no schema: enum (`monthly`, `weekly`, `biweekly`). UI do MVP: mensal + `first_due_date`. Última parcela absorve centavos.
+Frequência no schema: `monthly`, `weekly`, `biweekly`. UI do MVP: mensal + `first_due_date`. Última parcela absorve centavos. Encargos de `tenant_settings` não reescrevem a parcela.
+
+RLS tenant-only em todas as tabelas financeiras. Sem política de Super Admin. `tenants.sale_count` é metadado (vendas `open`), atualizado por trigger.
+
+FK composta `(tenant_id, …)` impede venda/parcela/pagamento apontar para registro de outro tenant. CHECKs garantem totais positivos, `paid_amount <= amount` e `reversed_amount <= amount`. Baixa e estorno fazem `SELECT … FOR UPDATE` na venda e na parcela na mesma transação — duas baixas simultâneas não ultrapassam o saldo.
 
 ## Documentos, assinatura, auditoria
 

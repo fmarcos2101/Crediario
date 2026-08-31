@@ -37,6 +37,7 @@ export class MemoryTenantRepository implements TenantRepository {
         createdAt: tenant.createdAt,
         lastAccessAt: null,
         customerCount: tenant.customerCount,
+        saleCount: tenant.saleCount,
         paymentConfigured: settings?.paymentConfigured ?? false,
         metaConfigured: settings?.metaConfigured ?? false,
       };

@@ -14,6 +14,7 @@ type Company = {
   createdAt: string;
   lastAccessAt: string | null;
   customerCount: number;
+  saleCount: number;
   paymentConfigured: boolean;
   metaConfigured: boolean;
 };
@@ -146,8 +147,8 @@ export function EmpresasPanel() {
                   {STATUS_LABEL[company.status]}
                 </p>
                 <p className="mt-1 text-xs text-slate-500">
-                  {company.customerCount} cliente(s) · Pagamento{' '}
-                  {company.paymentConfigured ? 'configurado' : 'não'} · Meta{' '}
+                  {company.customerCount} cliente(s) · {company.saleCount} venda(s) ·
+                  Pagamento {company.paymentConfigured ? 'configurado' : 'não'} · Meta{' '}
                   {company.metaConfigured ? 'configurada' : 'não'}
                   {company.lastAccessAt
                     ? ` · Último acesso ${new Date(company.lastAccessAt).toLocaleString('pt-BR')}`

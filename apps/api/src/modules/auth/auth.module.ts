@@ -11,6 +11,7 @@ import {
   AUTH_REPO,
   CUSTOMER_REPO,
   RepositoriesModule,
+  SALE_REPO,
   TENANT_REPO,
 } from '../tenants/repositories.module';
 import { TenantController } from '../tenants/tenant.controller';
@@ -18,8 +19,11 @@ import { SuperAdminGuard, TenantGuard } from '../tenants/tenant.guards';
 import { TenantService } from '../tenants/tenant.service';
 import { CustomerController } from '../customers/customer.controller';
 import { CustomerService } from '../customers/customer.service';
+import { SaleController } from '../sales/sale.controller';
+import { SaleService } from '../sales/sale.service';
 import type { AuthRepository } from './auth.types';
 import type { CustomerRepository, TenantRepository } from '../tenants/tenant.types';
+import type { SaleRepository } from '../sales/sale.types';
 
 @Module({
   imports: [RepositoriesModule],
@@ -28,6 +32,7 @@ import type { CustomerRepository, TenantRepository } from '../tenants/tenant.typ
     AdminTenantsController,
     TenantController,
     CustomerController,
+    SaleController,
   ],
   providers: [
     {
@@ -49,6 +54,15 @@ import type { CustomerRepository, TenantRepository } from '../tenants/tenant.typ
         new CustomerService(customers, env.APP_ENCRYPTION_KEY),
     },
     {
+      provide: SaleService,
+      inject: [SALE_REPO, CUSTOMER_REPO, TENANT_REPO],
+      useFactory: (
+        sales: SaleRepository,
+        customers: CustomerRepository,
+        tenants: TenantRepository,
+      ) => new SaleService(sales, customers, tenants),
+    },
+    {
       provide: AuthService,
       inject: [AUTH_REPO, APP_ENV, TenantService],
       useFactory: (repo: AuthRepository, env: AppEnv, tenants: TenantService) =>
@@ -59,6 +73,6 @@ import type { CustomerRepository, TenantRepository } from '../tenants/tenant.typ
     SuperAdminGuard,
     TenantGuard,
   ],
-  exports: [AuthService, TenantService, CustomerService],
+  exports: [AuthService, TenantService, CustomerService, SaleService],
 })
 export class AuthModule {}

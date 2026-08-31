@@ -10,6 +10,7 @@ export type TenantRecord = {
   name: string;
   status: TenantStatus;
   customerCount: number;
+  saleCount: number;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -87,6 +88,7 @@ export type AdminTenantListItem = {
   createdAt: Date;
   lastAccessAt: Date | null;
   customerCount: number;
+  saleCount: number;
   paymentConfigured: boolean;
   metaConfigured: boolean;
 };

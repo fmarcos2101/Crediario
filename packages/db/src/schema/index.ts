@@ -21,3 +21,14 @@ export {
   customers,
   customerStatusEnum,
 } from './tenants';
+export {
+  installmentFrequencyEnum,
+  installmentStatusEnum,
+  installments,
+  paymentMethodEnum,
+  paymentReversals,
+  payments,
+  saleItems,
+  saleStatusEnum,
+  sales,
+} from './sales';

@@ -45,6 +45,7 @@ export const tenants = pgTable('tenants', {
   name: varchar('name', { length: 160 }).notNull(),
   status: tenantStatusEnum('status').notNull().default('pending_setup'),
   customerCount: integer('customer_count').notNull().default(0),
+  saleCount: integer('sale_count').notNull().default(0),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
@@ -170,6 +171,7 @@ export const customers = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
+    uniqueIndex('customers_tenant_id_uidx').on(table.tenantId, table.id),
     uniqueIndex('customers_tenant_cpf_hmac_uidx').on(table.tenantId, table.cpfHmac),
     index('customers_tenant_name_idx').on(table.tenantId, table.name),
     index('customers_tenant_status_idx').on(table.tenantId, table.status),
