@@ -1,5 +1,6 @@
 import {
   and,
+  desc,
   eq,
   isNull,
   loginAttempts,
@@ -98,6 +99,16 @@ export class DrizzleAuthRepository implements AuthRepository {
       .update(sessions)
       .set({ revokedAt: at })
       .where(and(eq(sessions.tenantId, tenantId), isNull(sessions.revokedAt)));
+  }
+
+  async findLastAccessByTenant(tenantId: string): Promise<Date | null> {
+    const rows = await this.db
+      .select({ lastUsedAt: sessions.lastUsedAt })
+      .from(sessions)
+      .where(eq(sessions.tenantId, tenantId))
+      .orderBy(desc(sessions.lastUsedAt))
+      .limit(1);
+    return rows[0]?.lastUsedAt ?? null;
   }
 
   async findTotp(userId: string): Promise<TotpRecord | null> {

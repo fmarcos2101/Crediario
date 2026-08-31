@@ -19,14 +19,23 @@ const envSchema = z.object({
         .map((origin) => origin.trim())
         .filter((origin) => origin.length > 0),
     ),
-  DATABASE_URL: z.string().min(1).optional(),
-  REDIS_URL: z.string().min(1).optional(),
+  DATABASE_URL: z.preprocess(
+    (value) => (typeof value === 'string' && value.length === 0 ? undefined : value),
+    z.string().min(1).optional(),
+  ),
+  REDIS_URL: z.preprocess(
+    (value) => (typeof value === 'string' && value.length === 0 ? undefined : value),
+    z.string().min(1).optional(),
+  ),
   COOKIE_SECURE: booleanFromEnv,
   COOKIE_DOMAIN: z.string().optional(),
   SESSION_TTL_HOURS: z.coerce.number().positive().default(12),
   SUPERADMIN_SESSION_TTL_HOURS: z.coerce.number().positive().default(4),
   SUPERADMIN_IDLE_MINUTES: z.coerce.number().positive().default(30),
-  APP_ENCRYPTION_KEY: z.string().min(1).optional(),
+  APP_ENCRYPTION_KEY: z.preprocess(
+    (value) => (typeof value === 'string' && value.length === 0 ? undefined : value),
+    z.string().min(1).optional(),
+  ),
   EMAIL_FROM: z.string().default('CrediPlus <dev@localhost>'),
   BOOTSTRAP_SUPERADMIN_EMAIL: z.string().default(''),
   BOOTSTRAP_SUPERADMIN_PASSWORD: z.string().default(''),

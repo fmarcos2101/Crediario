@@ -45,4 +45,4 @@ Domínio público ainda não existe. CORS, cookies e e-mail usam variáveis (`AP
 
 ## Fases
 
-Fase 1: infraestrutura. Fase 2: autenticação. Fase 3: tenancy + RLS + convite + Super Admin de empresas. Clientes entram na Fase 5.
+Fase 1: infraestrutura. Fase 2: autenticação. Fase 3: tenancy + RLS. Fase 4: Super Admin (metadados) + configuração no painel da empresa (prazos, mensagens, APIs). Fase 5: clientes. Vendas entram na Fase 6.

@@ -1,11 +1,16 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import {
+  DEFAULT_MSG_DUE_REMINDER,
+  DEFAULT_MSG_OVERDUE,
+  DEFAULT_MSG_PAYMENT_RECEIVED,
+  DEFAULT_MSG_PROTEST_WARNING,
   assertPasswordPolicy,
   normalizeEmail,
   type TenantStatus,
+  type UpdateTenantSettingsInput,
 } from '@crediplus/shared';
 import { v7 as uuidv7 } from 'uuid';
-import { hashPassword, randomToken, sha256Hex } from '../../common/crypto';
+import { encryptString, hashPassword, randomToken, sha256Hex } from '../../common/crypto';
 import type { AuthRepository } from '../auth/auth.types';
 import type { EmailProvider } from '../email/email.provider';
 import { runWithRls } from './rls-als';
@@ -24,6 +29,7 @@ export class TenantService {
     private readonly users: AuthRepository,
     private readonly email: EmailProvider,
     private readonly appOrigin: string,
+    private readonly encryptionKey: string | undefined = undefined,
     private readonly now: () => Date = () => new Date(),
   ) {}
 
@@ -41,6 +47,7 @@ export class TenantService {
         id: tenantId,
         name: name.trim(),
         status: 'pending_setup',
+        customerCount: 0,
         createdAt: now,
         updatedAt: now,
       });
@@ -66,8 +73,14 @@ export class TenantService {
   }
 
   async listCompanies(): Promise<AdminTenantListItem[]> {
-    return runWithRls({ tenantId: null, isSuperAdmin: true }, () =>
+    const companies = await runWithRls({ tenantId: null, isSuperAdmin: true }, () =>
       this.tenants.listTenants(),
+    );
+    return Promise.all(
+      companies.map(async (company) => ({
+        ...company,
+        lastAccessAt: await this.users.findLastAccessByTenant(company.id),
+      })),
     );
   }
 
@@ -163,14 +176,21 @@ export class TenantService {
 
   async updateSettingsForTenant(
     tenantId: string,
-    patch: Partial<TenantSettingsRecord>,
+    patch: UpdateTenantSettingsInput,
   ): Promise<TenantSettingsRecord> {
     return runWithRls({ tenantId, isSuperAdmin: false }, async () => {
       const current = await this.tenants.findSettings(tenantId);
       if (!current) {
         throw new HttpException(NOT_FOUND, HttpStatus.NOT_FOUND);
       }
-      const next = { ...current, ...patch, tenantId };
+      const secretPatch = await this.applySecretPatch(tenantId, patch);
+      const next: TenantSettingsRecord = {
+        ...current,
+        ...this.pickSettingsPatch(patch),
+        tenantId,
+        paymentConfigured: secretPatch.paymentConfigured,
+        metaConfigured: secretPatch.metaConfigured,
+      };
       await this.tenants.updateSettings(next);
       return next;
     });
@@ -212,6 +232,145 @@ export class TenantService {
       lateFineValue: null,
       signatureOtpOnDevice: false,
       signatureOtpQr: true,
+      reminderDaysBeforeDue: 3,
+      overdueNudgeDays: 1,
+      protestWarningDays: 15,
+      collectionResponseHours: 24,
+      msgDueReminderEnabled: true,
+      msgDueReminderBody: DEFAULT_MSG_DUE_REMINDER,
+      msgOverdueEnabled: true,
+      msgOverdueBody: DEFAULT_MSG_OVERDUE,
+      msgProtestWarningEnabled: true,
+      msgProtestWarningBody: DEFAULT_MSG_PROTEST_WARNING,
+      msgPaymentReceivedEnabled: true,
+      msgPaymentReceivedBody: DEFAULT_MSG_PAYMENT_RECEIVED,
+      paymentProvider: 'none',
+      paymentConfigured: false,
+      metaPhoneNumberId: null,
+      metaWabaId: null,
+      metaConfigured: false,
+    };
+  }
+
+  private pickSettingsPatch(
+    patch: UpdateTenantSettingsInput,
+  ): Partial<TenantSettingsRecord> {
+    const next: Partial<TenantSettingsRecord> = {};
+    const assign = <K extends keyof TenantSettingsRecord>(
+      key: K,
+      value: TenantSettingsRecord[K] | undefined,
+    ) => {
+      if (value !== undefined) {
+        next[key] = value;
+      }
+    };
+    assign('timezone', patch.timezone);
+    assign('locale', patch.locale);
+    assign('lateInterestEnabled', patch.lateInterestEnabled);
+    assign('lateInterestMonthlyRate', patch.lateInterestMonthlyRate);
+    assign('lateFineEnabled', patch.lateFineEnabled);
+    assign('lateFineType', patch.lateFineType);
+    assign('lateFineValue', patch.lateFineValue);
+    assign('signatureOtpOnDevice', patch.signatureOtpOnDevice);
+    assign('signatureOtpQr', patch.signatureOtpQr);
+    assign('reminderDaysBeforeDue', patch.reminderDaysBeforeDue);
+    assign('overdueNudgeDays', patch.overdueNudgeDays);
+    assign('protestWarningDays', patch.protestWarningDays);
+    assign('collectionResponseHours', patch.collectionResponseHours);
+    assign('msgDueReminderEnabled', patch.msgDueReminderEnabled);
+    assign('msgDueReminderBody', patch.msgDueReminderBody);
+    assign('msgOverdueEnabled', patch.msgOverdueEnabled);
+    assign('msgOverdueBody', patch.msgOverdueBody);
+    assign('msgProtestWarningEnabled', patch.msgProtestWarningEnabled);
+    assign('msgProtestWarningBody', patch.msgProtestWarningBody);
+    assign('msgPaymentReceivedEnabled', patch.msgPaymentReceivedEnabled);
+    assign('msgPaymentReceivedBody', patch.msgPaymentReceivedBody);
+    assign('paymentProvider', patch.paymentProvider);
+    assign('metaPhoneNumberId', patch.metaPhoneNumberId);
+    assign('metaWabaId', patch.metaWabaId);
+    return next;
+  }
+
+  private async applySecretPatch(
+    tenantId: string,
+    patch: UpdateTenantSettingsInput,
+  ): Promise<{ paymentConfigured: boolean; metaConfigured: boolean }> {
+    const currentSettings = await this.tenants.findSettings(tenantId);
+    const current = (await this.tenants.findSecrets(tenantId)) ?? {
+      tenantId,
+      paymentApiKeyCiphertext: null,
+      paymentWebhookSecretCiphertext: null,
+      metaAccessTokenCiphertext: null,
+      metaAppSecretCiphertext: null,
+    };
+    let paymentKey = current.paymentApiKeyCiphertext;
+    let paymentWebhook = current.paymentWebhookSecretCiphertext;
+    let metaToken = current.metaAccessTokenCiphertext;
+    let metaSecret = current.metaAppSecretCiphertext;
+
+    const wantsPayment =
+      patch.paymentApiKey !== undefined ||
+      patch.paymentWebhookSecret !== undefined ||
+      patch.clearPaymentSecrets === true;
+    const wantsMeta =
+      patch.metaAccessToken !== undefined ||
+      patch.metaAppSecret !== undefined ||
+      patch.clearMetaSecrets === true;
+
+    if ((wantsPayment || wantsMeta) && !this.encryptionKey) {
+      throw new HttpException(
+        'Criptografia não configurada para guardar chaves de API.',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
+
+    if (patch.clearPaymentSecrets) {
+      paymentKey = null;
+      paymentWebhook = null;
+    } else {
+      if (patch.paymentApiKey) {
+        paymentKey = encryptString(patch.paymentApiKey, this.encryptionKey!);
+      }
+      if (patch.paymentWebhookSecret) {
+        paymentWebhook = encryptString(patch.paymentWebhookSecret, this.encryptionKey!);
+      }
+    }
+
+    if (patch.clearMetaSecrets) {
+      metaToken = null;
+      metaSecret = null;
+    } else {
+      if (patch.metaAccessToken) {
+        metaToken = encryptString(patch.metaAccessToken, this.encryptionKey!);
+      }
+      if (patch.metaAppSecret) {
+        metaSecret = encryptString(patch.metaAppSecret, this.encryptionKey!);
+      }
+    }
+
+    if (wantsPayment || wantsMeta) {
+      await this.tenants.upsertSecrets({
+        tenantId,
+        paymentApiKeyCiphertext: paymentKey,
+        paymentWebhookSecretCiphertext: paymentWebhook,
+        metaAccessTokenCiphertext: metaToken,
+        metaAppSecretCiphertext: metaSecret,
+      });
+    }
+
+    return {
+      paymentConfigured:
+        patch.clearPaymentSecrets ||
+        patch.paymentApiKey !== undefined ||
+        patch.paymentWebhookSecret !== undefined
+          ? Boolean(paymentKey)
+          : (currentSettings?.paymentConfigured ?? false),
+      metaConfigured:
+        patch.clearMetaSecrets ||
+        patch.metaAccessToken !== undefined ||
+        patch.metaAppSecret !== undefined
+          ? Boolean(metaToken)
+          : (currentSettings?.metaConfigured ?? false),
     };
   }
 }

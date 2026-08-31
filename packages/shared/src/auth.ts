@@ -55,15 +55,5 @@ export const acceptInviteSchema = z.object({
   password: z.string().min(MIN_PASSWORD_LENGTH).max(200),
 });
 
-export const updateTenantSettingsSchema = z.object({
-  lateInterestEnabled: z.boolean().optional(),
-  lateInterestMonthlyRate: z.string().nullable().optional(),
-  lateFineEnabled: z.boolean().optional(),
-  lateFineType: z.enum(['fixed', 'percent']).nullable().optional(),
-  lateFineValue: z.string().nullable().optional(),
-  signatureOtpOnDevice: z.boolean().optional(),
-  signatureOtpQr: z.boolean().optional(),
-});
-
 export type CreateTenantInput = z.infer<typeof createTenantSchema>;
 export type AcceptInviteInput = z.infer<typeof acceptInviteSchema>;

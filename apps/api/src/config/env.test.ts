@@ -24,4 +24,15 @@ describe('loadEnv', () => {
     });
     expect(env.CORS_ORIGINS).toEqual(['http://localhost:3000', 'http://127.0.0.1:3000']);
   });
+
+  it('trata chaves vazias como ausentes', () => {
+    const env = loadEnv({
+      APP_ENCRYPTION_KEY: '',
+      DATABASE_URL: '',
+      REDIS_URL: '',
+    });
+    expect(env.APP_ENCRYPTION_KEY).toBeUndefined();
+    expect(env.DATABASE_URL).toBeUndefined();
+    expect(env.REDIS_URL).toBeUndefined();
+  });
 });

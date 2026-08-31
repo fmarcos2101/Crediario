@@ -77,6 +77,17 @@ export class MemoryAuthRepository implements AuthRepository {
     }
   }
 
+  async findLastAccessByTenant(tenantId: string): Promise<Date | null> {
+    const matches = this.sessions.filter((session) => session.tenantId === tenantId);
+    if (matches.length === 0) {
+      return null;
+    }
+    return matches.reduce(
+      (latest, session) => (session.lastUsedAt > latest ? session.lastUsedAt : latest),
+      matches[0]!.lastUsedAt,
+    );
+  }
+
   async findTotp(userId: string): Promise<TotpRecord | null> {
     return this.totp.find((item) => item.userId === userId) ?? null;
   }

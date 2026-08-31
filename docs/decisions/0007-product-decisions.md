@@ -16,8 +16,9 @@ Aceito (2026-08-30).
 - Ativação da empresa só após Super Admin liberar.
 - Um usuário, uma empresa na UI. Schema N:N.
 - Sessão opaca + cookie.
-- Super Admin não vê PII nem financeiro do tenant.
+- Super Admin não vê PII nem financeiro do tenant. Vê só metadados (status, contagem de clientes, último acesso, flags de integração).
 - Bootstrap Super Admin: script one-shot, sem senha default no Git.
+- Configuração operacional (prazos, mensagens, API de pagamento, API da Meta) é editável **dentro do sistema** pelo dono da empresa. Segredos em `tenant_secrets` (AES-GCM), write-only na API.
 
 ## Cadastro e dinheiro
 
@@ -33,4 +34,4 @@ Aceito (2026-08-30).
 - Storage prod: Cloudflare R2. Dev: MinIO.
 - E-mail: Resend atrás de `EmailProvider`. Dev: Mailpit.
 - API: processo Node longo. Next separado.
-- Testes: Testcontainers desde a Fase 2. Playwright a partir da Fase 5.
+- Testes: unitários + isolamento RLS com PGlite. Playwright entra com o fluxo de venda.

@@ -44,3 +44,12 @@ export type SignatureMethod = (typeof signatureMethods)[number];
 
 export const lateFineTypes = ['fixed', 'percent'] as const;
 export type LateFineType = (typeof lateFineTypes)[number];
+
+export const paymentProviders = [
+  'none',
+  'pix_manual',
+  'asaas',
+  'mercadopago',
+  'other',
+] as const;
+export type PaymentProvider = (typeof paymentProviders)[number];

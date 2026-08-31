@@ -54,6 +54,7 @@ export type AuthRepository = {
   revokeSession(sessionId: string, at: Date): Promise<void>;
   revokeAllUserSessions(userId: string, at: Date): Promise<void>;
   revokeSessionsByTenant(tenantId: string, at: Date): Promise<void>;
+  findLastAccessByTenant(tenantId: string): Promise<Date | null>;
   findTotp(userId: string): Promise<TotpRecord | null>;
   upsertTotp(record: TotpRecord, enabledAt: Date): Promise<void>;
   createChallenge(challenge: ChallengeRecord): Promise<void>;

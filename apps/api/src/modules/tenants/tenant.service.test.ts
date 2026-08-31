@@ -39,4 +39,44 @@ describe('TenantService', () => {
     expect(settingsA.tenantId).toBe(a.tenantId);
     expect(a.tenantId).not.toBe(b.tenantId);
   });
+
+  it('grava chave de pagamento cifrada e só expõe o flag', async () => {
+    const users = new MemoryAuthRepository();
+    const tenants = new MemoryTenantRepository();
+    const email = new ConsoleEmailProvider();
+    const key = Buffer.alloc(32, 5).toString('base64');
+    const service = new TenantService(
+      tenants,
+      users,
+      email,
+      'http://localhost:3000',
+      key,
+    );
+    const created = await service.createCompany('Loja A', 'dono@loja-a.test');
+    const updated = await service.updateSettingsForTenant(created.tenantId, {
+      paymentProvider: 'asaas',
+      paymentApiKey: 'sk_test_nao_vazar',
+      protestWarningDays: 10,
+    });
+    expect(updated.paymentConfigured).toBe(true);
+    expect(updated.protestWarningDays).toBe(10);
+    expect(JSON.stringify(updated)).not.toContain('sk_test_nao_vazar');
+    const stored = await tenants.findSecrets(created.tenantId);
+    expect(stored?.paymentApiKeyCiphertext).toBeTruthy();
+    expect(stored?.paymentApiKeyCiphertext).not.toContain('sk_test');
+
+    const withMeta = await service.updateSettingsForTenant(created.tenantId, {
+      metaAccessToken: 'EAAG-token-secreto',
+      msgProtestWarningBody: 'Aviso de protesto para {nome} em {data}.',
+    });
+    expect(withMeta.metaConfigured).toBe(true);
+    expect(withMeta.msgProtestWarningBody).toContain('{nome}');
+    expect(JSON.stringify(withMeta)).not.toContain('EAAG-token-secreto');
+
+    const listed = await service.listCompanies();
+    expect(listed[0]?.paymentConfigured).toBe(true);
+    expect(listed[0]?.metaConfigured).toBe(true);
+    expect(JSON.stringify(listed)).not.toContain('sk_test');
+    expect(JSON.stringify(listed)).not.toContain('EAAG');
+  });
 });

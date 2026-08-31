@@ -20,7 +20,7 @@ export default async function HomePage() {
           <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
             Interface
           </dt>
-          <dd className="mt-1 text-sm text-slate-800">pt-BR · Fase 3 (multiempresa)</dd>
+          <dd className="mt-1 text-sm text-slate-800">pt-BR · Fase 5 (clientes)</dd>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
           <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">

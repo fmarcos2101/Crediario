@@ -27,7 +27,7 @@ Frontend não isola dados. Backend resolve tenant. Query filtra `tenant_id`. RLS
 
 ## Super Admin
 
-Metadados da empresa (status, uso, último acesso, integrações mascaradas). Sem CPF, vendas, parcelas ou documentos do cliente. Break-glass, se existir no futuro, exige reautenticação, motivo e auditoria.
+Metadados da empresa (status, uso, último acesso, flags de integração). Sem CPF, vendas, parcelas, documentos ou chaves de API. `tenant_secrets` e `customers` não têm política de Super Admin. Break-glass, se existir no futuro, exige reautenticação, motivo e auditoria.
 
 ## Arquivos (Fases 8–9)
 

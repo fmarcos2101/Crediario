@@ -1,4 +1,10 @@
-import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
+import {
+  createCipheriv,
+  createDecipheriv,
+  createHash,
+  createHmac,
+  randomBytes,
+} from 'node:crypto';
 import argon2 from 'argon2';
 
 export const ARGON2_OPTIONS: argon2.Options & { type: number } = {
@@ -22,6 +28,14 @@ export async function verifyPassword(hash: string, password: string): Promise<bo
 
 export function sha256Hex(value: string): string {
   return createHash('sha256').update(value).digest('hex');
+}
+
+export function hmacSha256Hex(value: string, keyBase64: string): string {
+  const key = Buffer.from(keyBase64, 'base64');
+  if (key.length !== 32) {
+    throw new Error('APP_ENCRYPTION_KEY deve ter 32 bytes em base64.');
+  }
+  return createHmac('sha256', key).update(value).digest('hex');
 }
 
 export function randomToken(bytes = 32): string {

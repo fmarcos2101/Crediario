@@ -10,10 +10,14 @@ export {
 } from './auth';
 export {
   lateFineTypeEnum,
+  paymentProviderEnum,
   tenantInvites,
+  tenantSecrets,
   tenantSettings,
   tenantStatusEnum,
   tenantUserStatusEnum,
   tenantUsers,
   tenants,
+  customers,
+  customerStatusEnum,
 } from './tenants';

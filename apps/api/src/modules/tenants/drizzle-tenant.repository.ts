@@ -4,6 +4,7 @@ import {
   desc,
   eq,
   tenantInvites,
+  tenantSecrets,
   tenantSettings,
   tenantUsers,
   tenants,
@@ -18,6 +19,7 @@ import type {
   TenantMembership,
   TenantRecord,
   TenantRepository,
+  TenantSecretsRecord,
   TenantSettingsRecord,
   TenantUserRecord,
 } from './tenant.types';
@@ -53,10 +55,14 @@ export class DrizzleTenantRepository implements TenantRepository {
           name: tenants.name,
           status: tenants.status,
           createdAt: tenants.createdAt,
+          customerCount: tenants.customerCount,
+          paymentConfigured: tenantSettings.paymentConfigured,
+          metaConfigured: tenantSettings.metaConfigured,
           memberEmail: users.email,
           inviteEmail: tenantInvites.email,
         })
         .from(tenants)
+        .leftJoin(tenantSettings, eq(tenantSettings.tenantId, tenants.id))
         .leftJoin(tenantUsers, eq(tenantUsers.tenantId, tenants.id))
         .leftJoin(users, eq(users.id, tenantUsers.userId))
         .leftJoin(tenantInvites, eq(tenantInvites.tenantId, tenants.id))
@@ -73,6 +79,10 @@ export class DrizzleTenantRepository implements TenantRepository {
             status: row.status,
             ownerEmail,
             createdAt: row.createdAt,
+            lastAccessAt: null,
+            customerCount: row.customerCount,
+            paymentConfigured: row.paymentConfigured ?? false,
+            metaConfigured: row.metaConfigured ?? false,
           });
         } else if (!current.ownerEmail && ownerEmail) {
           current.ownerEmail = ownerEmail;
@@ -110,6 +120,8 @@ export class DrizzleTenantRepository implements TenantRepository {
       await tx
         .update(tenantSettings)
         .set({
+          timezone: settings.timezone,
+          locale: settings.locale,
           lateInterestEnabled: settings.lateInterestEnabled,
           lateInterestMonthlyRate: settings.lateInterestMonthlyRate,
           lateFineEnabled: settings.lateFineEnabled,
@@ -117,9 +129,72 @@ export class DrizzleTenantRepository implements TenantRepository {
           lateFineValue: settings.lateFineValue,
           signatureOtpOnDevice: settings.signatureOtpOnDevice,
           signatureOtpQr: settings.signatureOtpQr,
+          reminderDaysBeforeDue: settings.reminderDaysBeforeDue,
+          overdueNudgeDays: settings.overdueNudgeDays,
+          protestWarningDays: settings.protestWarningDays,
+          collectionResponseHours: settings.collectionResponseHours,
+          msgDueReminderEnabled: settings.msgDueReminderEnabled,
+          msgDueReminderBody: settings.msgDueReminderBody,
+          msgOverdueEnabled: settings.msgOverdueEnabled,
+          msgOverdueBody: settings.msgOverdueBody,
+          msgProtestWarningEnabled: settings.msgProtestWarningEnabled,
+          msgProtestWarningBody: settings.msgProtestWarningBody,
+          msgPaymentReceivedEnabled: settings.msgPaymentReceivedEnabled,
+          msgPaymentReceivedBody: settings.msgPaymentReceivedBody,
+          paymentProvider: settings.paymentProvider,
+          paymentConfigured: settings.paymentConfigured,
+          metaPhoneNumberId: settings.metaPhoneNumberId,
+          metaWabaId: settings.metaWabaId,
+          metaConfigured: settings.metaConfigured,
           updatedAt: new Date(),
         })
         .where(eq(tenantSettings.tenantId, settings.tenantId));
+    });
+  }
+
+  async upsertSecrets(secrets: TenantSecretsRecord): Promise<void> {
+    await this.withRls(async (tx) => {
+      await tx
+        .insert(tenantSecrets)
+        .values({
+          tenantId: secrets.tenantId,
+          paymentApiKeyCiphertext: secrets.paymentApiKeyCiphertext,
+          paymentWebhookSecretCiphertext: secrets.paymentWebhookSecretCiphertext,
+          metaAccessTokenCiphertext: secrets.metaAccessTokenCiphertext,
+          metaAppSecretCiphertext: secrets.metaAppSecretCiphertext,
+          updatedAt: new Date(),
+        })
+        .onConflictDoUpdate({
+          target: tenantSecrets.tenantId,
+          set: {
+            paymentApiKeyCiphertext: secrets.paymentApiKeyCiphertext,
+            paymentWebhookSecretCiphertext: secrets.paymentWebhookSecretCiphertext,
+            metaAccessTokenCiphertext: secrets.metaAccessTokenCiphertext,
+            metaAppSecretCiphertext: secrets.metaAppSecretCiphertext,
+            updatedAt: new Date(),
+          },
+        });
+    });
+  }
+
+  async findSecrets(tenantId: string): Promise<TenantSecretsRecord | null> {
+    return this.withRls(async (tx) => {
+      const rows = await tx
+        .select()
+        .from(tenantSecrets)
+        .where(eq(tenantSecrets.tenantId, tenantId))
+        .limit(1);
+      const row = rows[0];
+      if (!row) {
+        return null;
+      }
+      return {
+        tenantId: row.tenantId,
+        paymentApiKeyCiphertext: row.paymentApiKeyCiphertext,
+        paymentWebhookSecretCiphertext: row.paymentWebhookSecretCiphertext,
+        metaAccessTokenCiphertext: row.metaAccessTokenCiphertext,
+        metaAppSecretCiphertext: row.metaAppSecretCiphertext,
+      };
     });
   }
 
@@ -227,6 +302,23 @@ export class DrizzleTenantRepository implements TenantRepository {
       lateFineValue: row.lateFineValue,
       signatureOtpOnDevice: row.signatureOtpOnDevice,
       signatureOtpQr: row.signatureOtpQr,
+      reminderDaysBeforeDue: row.reminderDaysBeforeDue,
+      overdueNudgeDays: row.overdueNudgeDays,
+      protestWarningDays: row.protestWarningDays,
+      collectionResponseHours: row.collectionResponseHours,
+      msgDueReminderEnabled: row.msgDueReminderEnabled,
+      msgDueReminderBody: row.msgDueReminderBody,
+      msgOverdueEnabled: row.msgOverdueEnabled,
+      msgOverdueBody: row.msgOverdueBody,
+      msgProtestWarningEnabled: row.msgProtestWarningEnabled,
+      msgProtestWarningBody: row.msgProtestWarningBody,
+      msgPaymentReceivedEnabled: row.msgPaymentReceivedEnabled,
+      msgPaymentReceivedBody: row.msgPaymentReceivedBody,
+      paymentProvider: row.paymentProvider,
+      paymentConfigured: row.paymentConfigured,
+      metaPhoneNumberId: row.metaPhoneNumberId,
+      metaWabaId: row.metaWabaId,
+      metaConfigured: row.metaConfigured,
     };
   }
 }

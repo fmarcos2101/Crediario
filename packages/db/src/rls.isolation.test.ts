@@ -20,7 +20,11 @@ function loadSql(name: string): string[] {
 describe('RLS isolamento multi-tenant', () => {
   it('Tenant A não lê settings de Tenant B', async () => {
     const db = new PGlite();
-    const files = ['0001_productive_northstar.sql', '0002_absurd_shotgun.sql'];
+    const files = [
+      '0001_productive_northstar.sql',
+      '0002_absurd_shotgun.sql',
+      '0003_nifty_hulk.sql',
+    ];
     for (const file of files) {
       for (const statement of loadSql(file)) {
         await db.exec(statement);
@@ -45,6 +49,12 @@ describe('RLS isolamento multi-tenant', () => {
         ('${tenantA}', 'Loja A', 'active'),
         ('${tenantB}', 'Loja B', 'active');
       INSERT INTO tenant_settings (tenant_id) VALUES ('${tenantA}'), ('${tenantB}');
+      INSERT INTO customers (id, tenant_id, name, cpf_hmac, cpf_ciphertext)
+      VALUES
+        ('cccccccc-cccc-4ccc-8ccc-cccccccccccc', '${tenantA}', 'Maria A', 'hmac-a', 'cipher-a'),
+        ('dddddddd-dddd-4ddd-8ddd-dddddddddddd', '${tenantB}', 'Maria B', 'hmac-b', 'cipher-b');
+      INSERT INTO tenant_secrets (tenant_id, payment_api_key_ciphertext)
+      VALUES ('${tenantA}', 'cipher-pay-a'), ('${tenantB}', 'cipher-pay-b');
     `);
 
     await db.exec(`SET ROLE crediplus_app`);
@@ -66,6 +76,35 @@ describe('RLS isolamento multi-tenant', () => {
     expect(own.rows.map((row) => row.tenant_id)).toEqual([tenantA]);
     expect(foreign.rows).toEqual([]);
     expect(listed.rows.map((row) => row.tenant_id)).toEqual([tenantA]);
+
+    const ownCustomers = await db.query<{ name: string }>(
+      'SELECT name FROM customers ORDER BY name',
+    );
+    const foreignCustomer = await db.query<{ name: string }>(
+      'SELECT name FROM customers WHERE tenant_id = $1',
+      [tenantB],
+    );
+    expect(ownCustomers.rows.map((row) => row.name)).toEqual(['Maria A']);
+    expect(foreignCustomer.rows).toEqual([]);
+
+    const ownSecrets = await db.query<{ tenant_id: string }>(
+      'SELECT tenant_id FROM tenant_secrets',
+    );
+    expect(ownSecrets.rows.map((row) => row.tenant_id)).toEqual([tenantA]);
+    const foreignSecrets = await db.query<{ tenant_id: string }>(
+      'SELECT tenant_id FROM tenant_secrets WHERE tenant_id = $1',
+      [tenantB],
+    );
+    expect(foreignSecrets.rows).toEqual([]);
+
+    await db.exec(`SELECT set_config('app.is_super_admin', 'true', false)`);
+    await db.exec(`SELECT set_config('app.current_tenant_id', '', false)`);
+    const superCustomers = await db.query<{ name: string }>('SELECT name FROM customers');
+    expect(superCustomers.rows).toEqual([]);
+    const superSecrets = await db.query<{ tenant_id: string }>(
+      'SELECT tenant_id FROM tenant_secrets',
+    );
+    expect(superSecrets.rows).toEqual([]);
 
     await db.exec('RESET ROLE');
     await db.close();

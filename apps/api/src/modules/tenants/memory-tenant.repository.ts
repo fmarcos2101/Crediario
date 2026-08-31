@@ -4,6 +4,7 @@ import type {
   TenantMembership,
   TenantRecord,
   TenantRepository,
+  TenantSecretsRecord,
   TenantSettingsRecord,
   TenantUserRecord,
 } from './tenant.types';
@@ -14,6 +15,7 @@ export class MemoryTenantRepository implements TenantRepository {
   settings: TenantSettingsRecord[] = [];
   members: TenantUserRecord[] = [];
   invites: TenantInviteRecord[] = [];
+  secrets: TenantSecretsRecord[] = [];
   ownerEmails = new Map<string, string>();
 
   async createTenant(record: TenantRecord): Promise<void> {
@@ -25,13 +27,20 @@ export class MemoryTenantRepository implements TenantRepository {
   }
 
   async listTenants(): Promise<AdminTenantListItem[]> {
-    return this.tenants.map((tenant) => ({
-      id: tenant.id,
-      name: tenant.name,
-      status: tenant.status,
-      ownerEmail: this.ownerEmails.get(tenant.id) ?? null,
-      createdAt: tenant.createdAt,
-    }));
+    return this.tenants.map((tenant) => {
+      const settings = this.settings.find((item) => item.tenantId === tenant.id);
+      return {
+        id: tenant.id,
+        name: tenant.name,
+        status: tenant.status,
+        ownerEmail: this.ownerEmails.get(tenant.id) ?? null,
+        createdAt: tenant.createdAt,
+        lastAccessAt: null,
+        customerCount: tenant.customerCount,
+        paymentConfigured: settings?.paymentConfigured ?? false,
+        metaConfigured: settings?.metaConfigured ?? false,
+      };
+    });
   }
 
   async updateTenantStatus(id: string, status: TenantStatus, at: Date): Promise<void> {
@@ -53,6 +62,15 @@ export class MemoryTenantRepository implements TenantRepository {
   async updateSettings(settings: TenantSettingsRecord): Promise<void> {
     this.settings = this.settings.filter((item) => item.tenantId !== settings.tenantId);
     this.settings.push({ ...settings });
+  }
+
+  async upsertSecrets(secrets: TenantSecretsRecord): Promise<void> {
+    this.secrets = this.secrets.filter((item) => item.tenantId !== secrets.tenantId);
+    this.secrets.push({ ...secrets });
+  }
+
+  async findSecrets(tenantId: string): Promise<TenantSecretsRecord | null> {
+    return this.secrets.find((item) => item.tenantId === tenantId) ?? null;
   }
 
   async createTenantUser(record: TenantUserRecord): Promise<void> {
