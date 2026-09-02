@@ -1,0 +1,39 @@
+{
+  "name": "crediplus",
+  "private": true,
+  "packageManager": "pnpm@10.33.3",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck",
+    "test": "turbo test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "db:generate": "pnpm --filter @crediplus/db generate",
+    "db:migrate": "pnpm --filter @crediplus/db migrate",
+    "db:studio": "pnpm --filter @crediplus/db studio",
+    "bootstrap:superadmin": "pnpm --filter @crediplus/api bootstrap:superadmin",
+    "infra:up": "docker compose -f infra/docker-compose.yml up -d",
+    "infra:down": "docker compose -f infra/docker-compose.yml down",
+    "infra:logs": "docker compose -f infra/docker-compose.yml logs -f"
+  },
+  "devDependencies": {
+    "prettier": "^3.6.2",
+    "turbo": "^2.5.8",
+    "typescript": "^5.9.2"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "argon2",
+      "esbuild",
+      "unrs-resolver"
+    ],
+    "overrides": {
+      "fastify": "5.11.3"
+    }
+  }
+}
