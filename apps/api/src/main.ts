@@ -36,24 +36,9 @@ async function bootstrap(): Promise<void> {
     trustProxy: env.NODE_ENV === 'production',
   });
 
-  const fastify = adapter.getInstance();
-  fastify.removeContentTypeParser('application/json');
-  fastify.addContentTypeParser(
-    'application/json',
-    { parseAs: 'string' },
-    (_request, body, done) => {
-      (_request as { rawBody?: string }).rawBody = body as string;
-      try {
-        const raw = body as string;
-        done(null, raw.length > 0 ? (JSON.parse(raw) as unknown) : {});
-      } catch (error) {
-        done(error as Error, undefined);
-      }
-    },
-  );
-
   const app = await NestFactory.create<NestFastifyApplication>(AppModule, adapter, {
     logger: ['error', 'warn', 'log'],
+    rawBody: true,
   });
 
   await app.register(helmet, {

@@ -2,6 +2,17 @@ import { Controller, Headers, Param, Post, Req } from '@nestjs/common';
 import type { FastifyRequest } from 'fastify';
 import { CollectionService } from './collection.service';
 
+function rawBodyOf(request: FastifyRequest & { rawBody?: string | Buffer }): string {
+  const raw = request.rawBody;
+  if (typeof raw === 'string') {
+    return raw;
+  }
+  if (Buffer.isBuffer(raw)) {
+    return raw.toString('utf8');
+  }
+  return '';
+}
+
 @Controller('webhooks/payments')
 export class PaymentWebhookController {
   constructor(private readonly collection: CollectionService) {}
@@ -9,7 +20,7 @@ export class PaymentWebhookController {
   @Post(':tenantId')
   handle(
     @Param('tenantId') tenantId: string,
-    @Req() request: FastifyRequest & { rawBody?: string },
+    @Req() request: FastifyRequest & { rawBody?: string | Buffer },
     @Headers('x-webhook-signature') signature?: string,
   ) {
     const forwarded = request.headers['x-forwarded-for'];
@@ -18,7 +29,7 @@ export class PaymentWebhookController {
     const header = Array.isArray(signature) ? signature[0] : signature;
     return this.collection.handlePaymentWebhook({
       tenantId,
-      rawBody: request.rawBody ?? '',
+      rawBody: rawBodyOf(request),
       signature: header,
       ip,
     });
