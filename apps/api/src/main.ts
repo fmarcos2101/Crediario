@@ -36,6 +36,22 @@ async function bootstrap(): Promise<void> {
     trustProxy: env.NODE_ENV === 'production',
   });
 
+  const fastify = adapter.getInstance();
+  fastify.removeContentTypeParser('application/json');
+  fastify.addContentTypeParser(
+    'application/json',
+    { parseAs: 'string' },
+    (_request, body, done) => {
+      (_request as { rawBody?: string }).rawBody = body as string;
+      try {
+        const raw = body as string;
+        done(null, raw.length > 0 ? (JSON.parse(raw) as unknown) : {});
+      } catch (error) {
+        done(error as Error, undefined);
+      }
+    },
+  );
+
   const app = await NestFactory.create<NestFastifyApplication>(AppModule, adapter, {
     logger: ['error', 'warn', 'log'],
   });
@@ -51,7 +67,12 @@ async function bootstrap(): Promise<void> {
     origin: env.CORS_ORIGINS,
     credentials: true,
     methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'X-Request-Id', 'X-CSRF-Token'],
+    allowedHeaders: [
+      'Content-Type',
+      'X-Request-Id',
+      'X-CSRF-Token',
+      'X-Webhook-Signature',
+    ],
   });
 
   app.setGlobalPrefix(API_PREFIX.replace(/^\//, ''));

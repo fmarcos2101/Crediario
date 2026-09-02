@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { decryptString, encryptString, hmacSha256Hex } from './crypto';
+import {
+  decryptString,
+  encryptString,
+  hmacHexMatches,
+  hmacSha256Hex,
+  hmacSha256HexSecret,
+} from './crypto';
 
 describe('crypto', () => {
   const key = Buffer.alloc(32, 3).toString('base64');
@@ -17,5 +23,14 @@ describe('crypto', () => {
     expect(a).not.toContain('529');
     expect(a).toHaveLength(64);
     expect(hmacSha256Hex('other', key)).not.toBe(a);
+  });
+
+  it('valida HMAC de webhook com comparação constante', () => {
+    const hex = hmacSha256HexSecret('{"ok":true}', 'segredo-loja');
+    expect(hmacHexMatches(hex, hex)).toBe(true);
+    expect(hmacHexMatches(hex, `sha256=${hex}`)).toBe(true);
+    expect(hmacHexMatches(hex, hmacSha256HexSecret('{"ok":false}', 'segredo-loja'))).toBe(
+      false,
+    );
   });
 });

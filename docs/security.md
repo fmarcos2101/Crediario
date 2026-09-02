@@ -21,6 +21,10 @@ Nenhum sistema na internet tem risco zero. A meta é reduzir superfície, empilh
 - Super Admin: TOTP obrigatório, idle curto, step-up em ação sensível.
 - Sem senha default no repositório. Bootstrap one-shot por env.
 
+## Webhook de pagamento (Fase 7)
+
+HMAC-SHA256 do corpo cru com o segredo da empresa. Sem cookie, sem CSRF. Comparação constante. Rate limit por IP+tenant. Segredo só em ciphertext.
+
 ## Multi-tenant (Fase 3)
 
 Frontend não isola dados. Backend resolve tenant. Query filtra `tenant_id`. RLS impede leitura cruzada. Teste obrigatório: Tenant A não lê recurso do Tenant B (404 uniforme).

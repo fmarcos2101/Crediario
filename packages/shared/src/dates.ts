@@ -36,3 +36,20 @@ export function addCalendarDays(isoDate: string, days: number): string {
 export function todayIsoDate(now: Date = new Date()): string {
   return now.toISOString().slice(0, 10);
 }
+
+export function calendarDayDiff(fromIso: string, toIso: string): number {
+  const from = ISO_DATE.exec(fromIso);
+  const to = ISO_DATE.exec(toIso);
+  if (!from || !to) {
+    throw new Error('Data inválida.');
+  }
+  const start = Date.UTC(Number(from[1]), Number(from[2]) - 1, Number(from[3]));
+  const end = Date.UTC(Number(to[1]), Number(to[2]) - 1, Number(to[3]));
+  return Math.round((end - start) / 86_400_000);
+}
+
+export function formatIsoDatePtBr(isoDate: string): string {
+  assertIsoDate(isoDate);
+  const [, year, month, day] = ISO_DATE.exec(isoDate)!;
+  return `${day}/${month}/${year}`;
+}

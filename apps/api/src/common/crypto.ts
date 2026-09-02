@@ -4,6 +4,7 @@ import {
   createHash,
   createHmac,
   randomBytes,
+  timingSafeEqual,
 } from 'node:crypto';
 import argon2 from 'argon2';
 
@@ -36,6 +37,22 @@ export function hmacSha256Hex(value: string, keyBase64: string): string {
     throw new Error('APP_ENCRYPTION_KEY deve ter 32 bytes em base64.');
   }
   return createHmac('sha256', key).update(value).digest('hex');
+}
+
+export function hmacSha256HexSecret(value: string, secret: string): string {
+  return createHmac('sha256', secret).update(value, 'utf8').digest('hex');
+}
+
+export function hmacHexMatches(expectedHex: string, provided: string): boolean {
+  const normalized = provided.startsWith('sha256=') ? provided.slice(7) : provided;
+  if (expectedHex.length !== normalized.length) {
+    return false;
+  }
+  try {
+    return timingSafeEqual(Buffer.from(expectedHex), Buffer.from(normalized));
+  } catch {
+    return false;
+  }
 }
 
 export function randomToken(bytes = 32): string {

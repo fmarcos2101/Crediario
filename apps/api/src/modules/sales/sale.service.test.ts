@@ -60,6 +60,7 @@ describe('SaleService', () => {
       '2026-02-28',
       '2026-03-31',
     ]);
+    expect(created.history.some((item) => item.reason === 'created')).toBe(true);
     await expect(service.get(TENANT_B, created.id)).rejects.toBeInstanceOf(HttpException);
     expect(await service.list(TENANT_B, {})).toEqual([]);
   });

@@ -35,6 +35,24 @@ type Sale = {
     method: string;
     paidAt: string;
   }[];
+  history: {
+    id: string;
+    entity: 'sale' | 'installment';
+    installmentId: string | null;
+    fromStatus: string | null;
+    toStatus: string;
+    reason: string;
+    createdAt: string;
+  }[];
+  collectionMessages: {
+    id: string;
+    kind: string;
+    channel: string;
+    status: string;
+    body: string;
+    recipient: string | null;
+    createdAt: string;
+  }[];
 };
 
 const STATUS: Record<string, string> = {
@@ -55,6 +73,26 @@ const METHODS = [
   { value: 'BOLETO', label: 'Boleto' },
   { value: 'OTHER', label: 'Outro' },
 ];
+
+const HISTORY_REASON: Record<string, string> = {
+  created: 'Criação',
+  cancelled: 'Cancelamento',
+  payment: 'Pagamento',
+  reversal: 'Estorno',
+};
+
+const COLLECTION_KIND: Record<string, string> = {
+  due_reminder: 'Lembrete de vencimento',
+  overdue: 'Atraso',
+  protest_warning: 'Aviso de protesto',
+  payment_received: 'Pagamento recebido',
+};
+
+const COLLECTION_STATUS: Record<string, string> = {
+  sent: 'Enviada',
+  skipped_no_channel: 'Sem canal',
+  skipped_disabled: 'Desligada',
+};
 
 function pickOpenInstallment(sale: Sale): {
   installmentId: string;
@@ -331,6 +369,46 @@ function Detalhe({ setError }: { setError: (value: string | null) => void }) {
         >
           Cancelar venda
         </button>
+      ) : null}
+
+      {sale.history.length > 0 ? (
+        <div className="mt-8">
+          <h2 className="text-lg font-semibold">Histórico</h2>
+          <ul className="mt-3 space-y-2">
+            {sale.history.map((item) => (
+              <li
+                key={item.id}
+                className="rounded-xl border border-slate-200 bg-white p-3 text-sm"
+              >
+                {item.entity === 'sale' ? 'Venda' : 'Parcela'} ·{' '}
+                {HISTORY_REASON[item.reason] ?? item.reason}
+                {item.fromStatus
+                  ? ` · ${item.fromStatus} → ${item.toStatus}`
+                  : ` · ${item.toStatus}`}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {sale.collectionMessages.length > 0 ? (
+        <div className="mt-8">
+          <h2 className="text-lg font-semibold">Cobrança</h2>
+          <ul className="mt-3 space-y-2">
+            {sale.collectionMessages.map((item) => (
+              <li
+                key={item.id}
+                className="rounded-xl border border-slate-200 bg-white p-3 text-sm"
+              >
+                <p className="font-medium">
+                  {COLLECTION_KIND[item.kind] ?? item.kind} ·{' '}
+                  {COLLECTION_STATUS[item.status] ?? item.status}
+                </p>
+                <p className="mt-1 text-slate-600">{item.body}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
       ) : null}
     </div>
   );

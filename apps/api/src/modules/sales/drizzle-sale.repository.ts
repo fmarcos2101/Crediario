@@ -5,10 +5,12 @@ import {
   desc,
   eq,
   inArray,
+  installmentStatusHistory,
   installments,
   paymentReversals,
   payments,
   saleItems,
+  saleStatusHistory,
   sales,
   type Database,
 } from '@crediplus/db';
@@ -18,6 +20,7 @@ import {
   paymentDrivenStatus,
   type SaleStatus,
 } from '@crediplus/shared';
+import { v7 as uuidv7 } from 'uuid';
 import { getRlsContext } from '../tenants/rls-als';
 import type {
   ApplyPaymentResult,
@@ -30,6 +33,7 @@ import type {
   SaleListRow,
   SaleRecord,
   SaleRepository,
+  StatusHistoryRecord,
 } from './sale.types';
 
 function asDateString(value: string | Date): string {
@@ -76,6 +80,29 @@ export class DrizzleSaleRepository implements SaleRepository {
       }
       if (input.installments.length > 0) {
         await tx.insert(installments).values(input.installments);
+      }
+      await tx.insert(saleStatusHistory).values({
+        id: uuidv7(),
+        tenantId: input.sale.tenantId,
+        saleId: input.sale.id,
+        fromStatus: null,
+        toStatus: input.sale.status,
+        reason: 'created',
+        createdAt: input.sale.createdAt,
+      });
+      if (input.installments.length > 0) {
+        await tx.insert(installmentStatusHistory).values(
+          input.installments.map((installment) => ({
+            id: uuidv7(),
+            tenantId: installment.tenantId,
+            saleId: installment.saleId,
+            installmentId: installment.id,
+            fromStatus: null,
+            toStatus: installment.status,
+            reason: 'created',
+            createdAt: installment.createdAt,
+          })),
+        );
       }
     });
     void input.customerName;
@@ -219,6 +246,15 @@ export class DrizzleSaleRepository implements SaleRepository {
         .update(sales)
         .set({ status: 'cancelled', updatedAt: at })
         .where(and(eq(sales.id, saleId), eq(sales.tenantId, tenantId)));
+      await tx.insert(saleStatusHistory).values({
+        id: uuidv7(),
+        tenantId,
+        saleId,
+        fromStatus: sale.status,
+        toStatus: 'cancelled',
+        reason: 'cancelled',
+        createdAt: at,
+      });
       if (related.length > 0) {
         await tx
           .update(installments)
@@ -226,6 +262,18 @@ export class DrizzleSaleRepository implements SaleRepository {
           .where(
             and(eq(installments.saleId, saleId), eq(installments.tenantId, tenantId)),
           );
+        await tx.insert(installmentStatusHistory).values(
+          related.map((installment) => ({
+            id: uuidv7(),
+            tenantId,
+            saleId,
+            installmentId: installment.id,
+            fromStatus: installment.status,
+            toStatus: 'CANCELLED' as const,
+            reason: 'cancelled',
+            createdAt: at,
+          })),
+        );
       }
       return 'cancelled';
     });
@@ -269,12 +317,23 @@ export class DrizzleSaleRepository implements SaleRepository {
         return 'insufficient';
       }
       const paidAmount = formatMoney(money(installment.paidAmount).plus(payment.amount));
+      const nextStatus = paymentDrivenStatus(installment.amount, paidAmount);
       await tx.insert(payments).values(payment);
+      await tx.insert(installmentStatusHistory).values({
+        id: uuidv7(),
+        tenantId: payment.tenantId,
+        saleId: payment.saleId,
+        installmentId: installment.id,
+        fromStatus: installment.status,
+        toStatus: nextStatus,
+        reason: 'payment',
+        createdAt: payment.createdAt,
+      });
       await tx
         .update(installments)
         .set({
           paidAmount,
-          status: paymentDrivenStatus(installment.amount, paidAmount),
+          status: nextStatus,
           updatedAt: payment.createdAt,
         })
         .where(
@@ -343,6 +402,17 @@ export class DrizzleSaleRepository implements SaleRepository {
       }
       const reversedAmount = formatMoney(money(payment.reversedAmount).plus(amount));
       const paidAmount = formatMoney(money(installment.paidAmount).minus(amount));
+      const nextStatus = paymentDrivenStatus(installment.amount, paidAmount);
+      await tx.insert(installmentStatusHistory).values({
+        id: uuidv7(),
+        tenantId: reversal.tenantId,
+        saleId,
+        installmentId: installment.id,
+        fromStatus: installment.status,
+        toStatus: nextStatus,
+        reason: 'reversal',
+        createdAt: reversal.createdAt,
+      });
       await tx.insert(paymentReversals).values({
         id: reversal.id,
         tenantId: reversal.tenantId,
@@ -359,7 +429,7 @@ export class DrizzleSaleRepository implements SaleRepository {
         .update(installments)
         .set({
           paidAmount,
-          status: paymentDrivenStatus(installment.amount, paidAmount),
+          status: nextStatus,
           updatedAt: reversal.createdAt,
         })
         .where(
@@ -369,6 +439,52 @@ export class DrizzleSaleRepository implements SaleRepository {
           ),
         );
       return 'applied';
+    });
+  }
+
+  async listHistory(tenantId: string, saleId: string): Promise<StatusHistoryRecord[]> {
+    return this.withRls(async (tx) => {
+      const saleRows = await tx
+        .select()
+        .from(saleStatusHistory)
+        .where(
+          and(
+            eq(saleStatusHistory.tenantId, tenantId),
+            eq(saleStatusHistory.saleId, saleId),
+          ),
+        );
+      const installmentRows = await tx
+        .select()
+        .from(installmentStatusHistory)
+        .where(
+          and(
+            eq(installmentStatusHistory.tenantId, tenantId),
+            eq(installmentStatusHistory.saleId, saleId),
+          ),
+        );
+      const rows: StatusHistoryRecord[] = [
+        ...saleRows.map((row) => ({
+          id: row.id,
+          entity: 'sale' as const,
+          saleId: row.saleId,
+          installmentId: null,
+          fromStatus: row.fromStatus,
+          toStatus: row.toStatus,
+          reason: row.reason,
+          createdAt: row.createdAt,
+        })),
+        ...installmentRows.map((row) => ({
+          id: row.id,
+          entity: 'installment' as const,
+          saleId: row.saleId,
+          installmentId: row.installmentId,
+          fromStatus: row.fromStatus,
+          toStatus: row.toStatus,
+          reason: row.reason,
+          createdAt: row.createdAt,
+        })),
+      ];
+      return rows.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
     });
   }
 

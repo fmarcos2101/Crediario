@@ -19,9 +19,9 @@ A simplicidade fica na interface. A robustez fica no servidor.
 ```
 Browser → apps/web (Next.js) → apps/api (NestJS + Fastify)
                                  ├─ PostgreSQL 16 (+ RLS a partir da Fase 3)
-                                 ├─ Redis 7 (rate limit, filas)
+                                 ├─ Redis 7 (rate limit futuro; jobs de cobrança da Fase 7 rodam in-process)
                                  ├─ Object storage S3 (MinIO local / Cloudflare R2)
-                                 └─ BullMQ workers (mesmo processo no início)
+                                 └─ BullMQ workers (opcional; a Fase 7 usa setInterval na API)
 ```
 
 ## Monorepo
@@ -45,4 +45,4 @@ Domínio público ainda não existe. CORS, cookies e e-mail usam variáveis (`AP
 
 ## Fases
 
-Fase 1: infraestrutura. Fase 2: autenticação. Fase 3: tenancy + RLS. Fase 4: Super Admin (metadados) + configuração no painel da empresa (prazos, mensagens, APIs). Fase 5: clientes. Fase 6: vendas, parcelas e pagamentos. Documentos entram na Fase 8.
+Fase 1: infraestrutura. Fase 2: autenticação. Fase 3: tenancy + RLS. Fase 4: Super Admin (metadados) + configuração no painel da empresa (prazos, mensagens, APIs). Fase 5: clientes. Fase 6: vendas, parcelas e pagamentos. Fase 7: histórico de status, jobs de cobrança (e-mail) e webhook HMAC de pagamento. Documentos entram na Fase 8.

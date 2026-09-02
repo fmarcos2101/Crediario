@@ -77,6 +77,17 @@ export type ApplyReversalResult =
 export type CancelSaleResult =
   'cancelled' | 'not_found' | 'already_cancelled' | 'has_payments';
 
+export type StatusHistoryRecord = {
+  id: string;
+  entity: 'sale' | 'installment';
+  saleId: string;
+  installmentId: string | null;
+  fromStatus: string | null;
+  toStatus: string;
+  reason: string;
+  createdAt: Date;
+};
+
 export type SaleRepository = {
   createBundle(input: {
     sale: SaleRecord;
@@ -104,4 +115,5 @@ export type SaleRepository = {
     reversal: Omit<PaymentReversalRecord, 'amount'> & { amount?: string },
     saleId: string,
   ): Promise<ApplyReversalResult>;
+  listHistory(tenantId: string, saleId: string): Promise<StatusHistoryRecord[]>;
 };

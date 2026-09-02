@@ -9,6 +9,7 @@ import { SessionGuard } from './session.guard';
 import { AdminTenantsController } from '../tenants/admin-tenants.controller';
 import {
   AUTH_REPO,
+  COLLECTION_REPO,
   CUSTOMER_REPO,
   RepositoriesModule,
   SALE_REPO,
@@ -19,9 +20,14 @@ import { SuperAdminGuard, TenantGuard } from '../tenants/tenant.guards';
 import { TenantService } from '../tenants/tenant.service';
 import { CustomerController } from '../customers/customer.controller';
 import { CustomerService } from '../customers/customer.service';
+import { CollectionController } from '../collection/collection.controller';
+import { CollectionScheduler } from '../collection/collection.scheduler';
+import { CollectionService } from '../collection/collection.service';
+import { PaymentWebhookController } from '../collection/payment-webhook.controller';
 import { SaleController } from '../sales/sale.controller';
 import { SaleService } from '../sales/sale.service';
 import type { AuthRepository } from './auth.types';
+import type { CollectionRepository } from '../collection/collection.types';
 import type { CustomerRepository, TenantRepository } from '../tenants/tenant.types';
 import type { SaleRepository } from '../sales/sale.types';
 
@@ -33,6 +39,8 @@ import type { SaleRepository } from '../sales/sale.types';
     TenantController,
     CustomerController,
     SaleController,
+    CollectionController,
+    PaymentWebhookController,
   ],
   providers: [
     {
@@ -54,13 +62,33 @@ import type { SaleRepository } from '../sales/sale.types';
         new CustomerService(customers, env.APP_ENCRYPTION_KEY),
     },
     {
+      provide: CollectionService,
+      inject: [COLLECTION_REPO, SALE_REPO, CUSTOMER_REPO, TENANT_REPO, APP_ENV],
+      useFactory: (
+        collections: CollectionRepository,
+        sales: SaleRepository,
+        customers: CustomerRepository,
+        tenants: TenantRepository,
+        env: AppEnv,
+      ) =>
+        new CollectionService(
+          collections,
+          sales,
+          customers,
+          tenants,
+          new ConsoleEmailProvider(),
+          env.APP_ENCRYPTION_KEY,
+        ),
+    },
+    {
       provide: SaleService,
-      inject: [SALE_REPO, CUSTOMER_REPO, TENANT_REPO],
+      inject: [SALE_REPO, CUSTOMER_REPO, TENANT_REPO, CollectionService],
       useFactory: (
         sales: SaleRepository,
         customers: CustomerRepository,
         tenants: TenantRepository,
-      ) => new SaleService(sales, customers, tenants),
+        collection: CollectionService,
+      ) => new SaleService(sales, customers, tenants, () => new Date(), collection),
     },
     {
       provide: AuthService,
@@ -68,11 +96,12 @@ import type { SaleRepository } from '../sales/sale.types';
       useFactory: (repo: AuthRepository, env: AppEnv, tenants: TenantService) =>
         new AuthService(repo, env, new ConsoleEmailProvider(), tenants),
     },
+    CollectionScheduler,
     SessionGuard,
     CsrfGuard,
     SuperAdminGuard,
     TenantGuard,
   ],
-  exports: [AuthService, TenantService, CustomerService, SaleService],
+  exports: [AuthService, TenantService, CustomerService, SaleService, CollectionService],
 })
 export class AuthModule {}

@@ -60,7 +60,7 @@ Tudo isso é editável no painel da empresa (`/app/configuracoes`). O Super Admi
 
 Role da aplicação sem `BYPASSRLS`. `SET LOCAL` via `set_config(..., true)` na mesma transação da query (`applyRlsContext`).
 
-Tabelas com `ENABLE` + `FORCE ROW LEVEL SECURITY`: `tenants`, `tenant_settings`, `tenant_users`, `tenant_invites`, `customers`, `tenant_secrets`, `sales`, `sale_items`, `installments`, `payments`, `payment_reversals`.
+Tabelas com `ENABLE` + `FORCE ROW LEVEL SECURITY`: `tenants`, `tenant_settings`, `tenant_users`, `tenant_invites`, `customers`, `tenant_secrets`, `sales`, `sale_items`, `installments`, `payments`, `payment_reversals`, `sale_status_history`, `installment_status_history`, `collection_messages`, `payment_webhook_events`.
 
 Contexto: `app.current_tenant_id`, `app.is_super_admin`, `app.current_user_id`, `app.invite_token_hash`.
 
@@ -103,6 +103,19 @@ Frequência no schema: `monthly`, `weekly`, `biweekly`. UI do MVP: mensal + `fir
 RLS tenant-only em todas as tabelas financeiras. Sem política de Super Admin. `tenants.sale_count` é metadado (vendas `open`), atualizado por trigger.
 
 FK composta `(tenant_id, …)` impede venda/parcela/pagamento apontar para registro de outro tenant. CHECKs garantem totais positivos, `paid_amount <= amount` e `reversed_amount <= amount`. Baixa e estorno fazem `SELECT … FOR UPDATE` na venda e na parcela na mesma transação — duas baixas simultâneas não ultrapassam o saldo.
+
+## Histórico, cobrança e webhook (Fase 7)
+
+| Tabela                       | Função                                                                                              |
+| ---------------------------- | --------------------------------------------------------------------------------------------------- |
+| `sale_status_history`        | Append-only. Criação e cancelamento da venda, na mesma transação.                                   |
+| `installment_status_history` | Append-only. Criação, pagamento, estorno e cancelamento da parcela.                                 |
+| `collection_messages`        | Mensagens planejadas/enviadas. Único `(tenant_id, occurrence_key)`. Sem `DELETE`.                   |
+| `payment_webhook_events`     | Eventos HMAC. Único `(tenant_id, event_id)`. Status `applied` / `duplicate` / `ignored` / `failed`. |
+
+RLS tenant-only. Sem política de Super Admin — metadados de empresa sim, financeiro/histórico/webhook não.
+
+Occurrence keys: `due_reminder:{installmentId}:{dueDate}`, `overdue:…`, `protest_warning:…`, `payment_received:{installmentId}:{paymentId}`.
 
 ## Documentos, assinatura, auditoria
 

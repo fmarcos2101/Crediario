@@ -60,7 +60,30 @@ export {
   type RecordPaymentInput,
   type ReversePaymentInput,
 } from './sales';
-export { addCalendarDays, addCalendarMonths, todayIsoDate } from './dates';
+export {
+  addCalendarDays,
+  addCalendarMonths,
+  calendarDayDiff,
+  formatIsoDatePtBr,
+  todayIsoDate,
+} from './dates';
+export {
+  collectionKinds,
+  collectionChannels,
+  collectionMessageStatuses,
+  paymentWebhookStatuses,
+  paymentWebhookSchema,
+  collectionOccurrenceKey,
+  planCollection,
+  renderCollectionTemplate,
+  collectionEmailSubject,
+  collectionTemplateDate,
+  type CollectionKind,
+  type CollectionChannel,
+  type CollectionMessageStatus,
+  type PaymentWebhookStatus,
+  type PaymentWebhookInput,
+} from './collection';
 export {
   MIN_PASSWORD_LENGTH,
   assertPasswordPolicy,

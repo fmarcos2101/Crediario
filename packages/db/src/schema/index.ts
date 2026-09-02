@@ -24,11 +24,21 @@ export {
 export {
   installmentFrequencyEnum,
   installmentStatusEnum,
+  installmentStatusHistory,
   installments,
   paymentMethodEnum,
   paymentReversals,
   payments,
   saleItems,
   saleStatusEnum,
+  saleStatusHistory,
   sales,
 } from './sales';
+export {
+  collectionChannelEnum,
+  collectionKindEnum,
+  collectionMessageStatusEnum,
+  collectionMessages,
+  paymentWebhookEvents,
+  paymentWebhookStatusEnum,
+} from './collection';

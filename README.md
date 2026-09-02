@@ -6,7 +6,7 @@ Acesso **somente por convite**. Não existe cadastro público.
 
 ## Fase atual
 
-**Fase 1 — infraestrutura**, **Fase 2 — autenticação**, **Fase 3 — multiempresa**, **Fase 4 — Super Admin (metadados)**, **Fase 5 — clientes** e **Fase 6 — vendas**.
+**Fase 1 — infraestrutura**, **Fase 2 — autenticação**, **Fase 3 — multiempresa**, **Fase 4 — Super Admin (metadados)**, **Fase 5 — clientes**, **Fase 6 — vendas** e **Fase 7 — histórico, cobrança e webhook**.
 
 Configurações de cobrança, mensagens, API de pagamento e API da Meta ficam no painel da empresa (`/app/configuracoes`). Super Admin não vê PII, chaves nem financeiro.
 
@@ -27,7 +27,7 @@ pnpm bootstrap:superadmin   # cria Super Admin; imprime URL otpauth
 pnpm dev
 ```
 
-- Web: http://localhost:3000 — `/login`, `/admin`, `/app`, `/app/clientes`, `/app/vendas`, `/app/configuracoes`, `/convite`
+- Web: http://localhost:3000 — `/login`, `/admin`, `/app`, `/app/clientes`, `/app/vendas`, `/app/cobranca`, `/app/configuracoes`, `/convite`
 - API: http://localhost:4000/api/v1/health
 - Mailpit: http://localhost:8025 (link do convite)
 - MinIO: http://localhost:9001

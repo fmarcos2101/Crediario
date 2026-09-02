@@ -213,3 +213,61 @@ export const paymentReversals = pgTable(
     check('payment_reversals_amount_chk', sql`amount > 0`),
   ],
 );
+
+export const saleStatusHistory = pgTable(
+  'sale_status_history',
+  {
+    id: uuid('id').primaryKey(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id),
+    saleId: uuid('sale_id')
+      .notNull()
+      .references(() => sales.id),
+    fromStatus: saleStatusEnum('from_status'),
+    toStatus: saleStatusEnum('to_status').notNull(),
+    reason: varchar('reason', { length: 64 }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('sale_status_history_tenant_sale_idx').on(table.tenantId, table.saleId),
+    foreignKey({
+      name: 'sale_status_history_sale_tenant_fk',
+      columns: [table.tenantId, table.saleId],
+      foreignColumns: [sales.tenantId, sales.id],
+    }),
+  ],
+);
+
+export const installmentStatusHistory = pgTable(
+  'installment_status_history',
+  {
+    id: uuid('id').primaryKey(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id),
+    saleId: uuid('sale_id')
+      .notNull()
+      .references(() => sales.id),
+    installmentId: uuid('installment_id')
+      .notNull()
+      .references(() => installments.id),
+    fromStatus: installmentStatusEnum('from_status'),
+    toStatus: installmentStatusEnum('to_status').notNull(),
+    reason: varchar('reason', { length: 64 }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('installment_status_history_tenant_sale_idx').on(table.tenantId, table.saleId),
+    foreignKey({
+      name: 'installment_status_history_sale_tenant_fk',
+      columns: [table.tenantId, table.saleId],
+      foreignColumns: [sales.tenantId, sales.id],
+    }),
+    foreignKey({
+      name: 'installment_status_history_installment_tenant_fk',
+      columns: [table.tenantId, table.installmentId],
+      foreignColumns: [installments.tenantId, installments.id],
+    }),
+  ],
+);

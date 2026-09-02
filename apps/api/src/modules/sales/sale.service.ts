@@ -12,6 +12,7 @@ import {
   type SaleStatus,
 } from '@crediplus/shared';
 import { v7 as uuidv7 } from 'uuid';
+import type { CollectionService } from '../collection/collection.service';
 import { runWithRls } from '../tenants/rls-als';
 import type { CustomerRepository, TenantRepository } from '../tenants/tenant.types';
 import type {
@@ -21,6 +22,7 @@ import type {
   SaleListRow,
   SaleRecord,
   SaleRepository,
+  StatusHistoryRecord,
 } from './sale.types';
 
 const NOT_FOUND = 'Recurso não encontrado.';
@@ -55,6 +57,17 @@ export type PublicPayment = {
   notes: string | null;
 };
 
+export type PublicStatusHistory = {
+  id: string;
+  entity: 'sale' | 'installment';
+  saleId: string;
+  installmentId: string | null;
+  fromStatus: string | null;
+  toStatus: string;
+  reason: string;
+  createdAt: Date;
+};
+
 export type PublicSale = {
   id: string;
   customerId: string;
@@ -72,6 +85,16 @@ export type PublicSale = {
   items: PublicSaleItem[];
   installments: PublicInstallment[];
   payments: PublicPayment[];
+  history: PublicStatusHistory[];
+  collectionMessages: {
+    id: string;
+    kind: string;
+    channel: string;
+    status: string;
+    body: string;
+    recipient: string | null;
+    createdAt: Date;
+  }[];
 };
 
 export class SaleService {
@@ -80,12 +103,18 @@ export class SaleService {
     private readonly customers: CustomerRepository,
     private readonly tenants: TenantRepository,
     private readonly now: () => Date = () => new Date(),
+    private readonly collection?: CollectionService,
   ) {}
 
   async list(
     tenantId: string,
     query: { customerId?: string; status?: SaleStatus },
-  ): Promise<Omit<PublicSale, 'items' | 'installments' | 'payments'>[]> {
+  ): Promise<
+    Omit<
+      PublicSale,
+      'items' | 'installments' | 'payments' | 'history' | 'collectionMessages'
+    >[]
+  > {
     return runWithRls({ tenantId, isSuperAdmin: false }, async () => {
       const reminder = await this.reminderDays(tenantId);
       const rows = await this.sales.listSales(tenantId, query);
@@ -110,12 +139,24 @@ export class SaleService {
         throw new HttpException(NOT_FOUND, HttpStatus.NOT_FOUND);
       }
       const reminder = await this.reminderDays(tenantId);
-      const [items, installments, payments] = await Promise.all([
+      const [items, installments, payments, history] = await Promise.all([
         this.sales.listItems(tenantId, id),
         this.sales.listInstallments(tenantId, id),
         this.sales.listPayments(tenantId, id),
+        this.sales.listHistory(tenantId, id),
       ]);
-      return this.toPublic(sale, items, installments, payments, reminder);
+      const collectionMessages = this.collection
+        ? await this.collection.listMessages(tenantId, id)
+        : [];
+      return this.toPublic(
+        sale,
+        items,
+        installments,
+        payments,
+        reminder,
+        history,
+        collectionMessages,
+      );
     });
   }
 
@@ -195,12 +236,15 @@ export class SaleService {
         customerName: customer.name,
       });
       const reminder = await this.reminderDays(tenantId);
+      const history = await this.sales.listHistory(tenantId, saleId);
       return this.toPublic(
         { ...sale, customerName: customer.name },
         withSaleId,
         installments,
         [],
         reminder,
+        history,
+        [],
       );
     });
   }
@@ -234,8 +278,9 @@ export class SaleService {
         );
       }
       const now = this.now();
+      const paymentId = uuidv7();
       const result = await this.sales.applyPayment({
-        id: uuidv7(),
+        id: paymentId,
         tenantId,
         saleId,
         installmentId: input.installmentId,
@@ -260,6 +305,15 @@ export class SaleService {
           'Pagamento maior que o saldo da parcela.',
           HttpStatus.BAD_REQUEST,
         );
+      }
+      if (this.collection) {
+        await this.collection.notifyPaymentReceived({
+          tenantId,
+          saleId,
+          installmentId: input.installmentId,
+          paymentId,
+          amount: formatMoney(amount),
+        });
       }
       return this.get(tenantId, saleId);
     });
@@ -306,7 +360,10 @@ export class SaleService {
     sale: SaleListRow,
     installments: InstallmentRecord[],
     reminder: number,
-  ): Omit<PublicSale, 'items' | 'installments' | 'payments'> {
+  ): Omit<
+    PublicSale,
+    'items' | 'installments' | 'payments' | 'history' | 'collectionMessages'
+  > {
     const presented = installments.map((item) => this.toInstallment(item, reminder));
     return {
       id: sale.id,
@@ -332,6 +389,8 @@ export class SaleService {
     installments: InstallmentRecord[],
     payments: PaymentRecord[],
     reminder: number,
+    history: StatusHistoryRecord[] = [],
+    collectionMessages: PublicSale['collectionMessages'] = [],
   ): PublicSale {
     const presented = installments.map((item) => this.toInstallment(item, reminder));
     return {
@@ -354,6 +413,17 @@ export class SaleService {
         paidAt: item.paidAt,
         notes: item.notes,
       })),
+      history: history.map((item) => ({
+        id: item.id,
+        entity: item.entity,
+        saleId: item.saleId,
+        installmentId: item.installmentId,
+        fromStatus: item.fromStatus,
+        toStatus: item.toStatus,
+        reason: item.reason,
+        createdAt: item.createdAt,
+      })),
+      collectionMessages,
     };
   }
 

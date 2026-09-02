@@ -25,6 +25,7 @@ describe('RLS isolamento multi-tenant', () => {
       '0002_absurd_shotgun.sql',
       '0003_nifty_hulk.sql',
       '0004_bright_sister_grimm.sql',
+      '0005_clammy_brood.sql',
     ];
     for (const file of files) {
       for (const statement of loadSql(file)) {
@@ -62,6 +63,24 @@ describe('RLS isolamento multi-tenant', () => {
       ) VALUES
         ('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', '${tenantA}', 'cccccccc-cccc-4ccc-8ccc-cccccccccccc', 'open', '100.00', '0.00', '100.00', 1, '2026-04-01'),
         ('ffffffff-ffff-4fff-8fff-ffffffffffff', '${tenantB}', 'dddddddd-dddd-4ddd-8ddd-dddddddddddd', 'open', '200.00', '0.00', '200.00', 1, '2026-04-01');
+      INSERT INTO installments (
+        id, tenant_id, sale_id, sequence, due_date, amount, paid_amount, status
+      ) VALUES
+        ('55555555-5555-4555-8555-555555555555', '${tenantA}', 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', 1, '2026-04-01', '100.00', '0.00', 'OPEN'),
+        ('66666666-6666-4666-8666-666666666666', '${tenantB}', 'ffffffff-ffff-4fff-8fff-ffffffffffff', 1, '2026-04-01', '200.00', '0.00', 'OPEN');
+      INSERT INTO sale_status_history (id, tenant_id, sale_id, to_status, reason)
+      VALUES
+        ('11111111-1111-4111-8111-111111111111', '${tenantA}', 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', 'open', 'created'),
+        ('22222222-2222-4222-8222-222222222222', '${tenantB}', 'ffffffff-ffff-4fff-8fff-ffffffffffff', 'open', 'created');
+      INSERT INTO collection_messages (
+        id, tenant_id, sale_id, installment_id, kind, channel, status, occurrence_key, body
+      ) VALUES
+        ('77777777-7777-4777-8777-777777777777', '${tenantA}', 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', '55555555-5555-4555-8555-555555555555', 'due_reminder', 'none', 'skipped_no_channel', 'due_reminder:a:2026-04-01', 'Olá A'),
+        ('88888888-8888-4888-8888-888888888888', '${tenantB}', 'ffffffff-ffff-4fff-8fff-ffffffffffff', '66666666-6666-4666-8666-666666666666', 'due_reminder', 'none', 'skipped_no_channel', 'due_reminder:b:2026-04-01', 'Olá B');
+      INSERT INTO payment_webhook_events (id, tenant_id, event_id, status, payload)
+      VALUES
+        ('33333333-3333-4333-8333-333333333333', '${tenantA}', 'evt-a', 'applied', '{}'),
+        ('44444444-4444-4444-8444-444444444444', '${tenantB}', 'evt-b', 'applied', '{}');
     `);
 
     await db.exec(`SET ROLE crediplus_app`);
@@ -108,6 +127,22 @@ describe('RLS isolamento multi-tenant', () => {
     expect(ownSales.rows.map((row) => row.id)).toEqual([
       'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
     ]);
+    const ownHistory = await db.query<{ sale_id: string }>(
+      'SELECT sale_id FROM sale_status_history',
+    );
+    expect(ownHistory.rows.map((row) => row.sale_id)).toEqual([
+      'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+    ]);
+    const ownWebhooks = await db.query<{ event_id: string }>(
+      'SELECT event_id FROM payment_webhook_events',
+    );
+    expect(ownWebhooks.rows.map((row) => row.event_id)).toEqual(['evt-a']);
+    const ownMessages = await db.query<{ occurrence_key: string }>(
+      'SELECT occurrence_key FROM collection_messages',
+    );
+    expect(ownMessages.rows.map((row) => row.occurrence_key)).toEqual([
+      'due_reminder:a:2026-04-01',
+    ]);
 
     await db.exec(`SELECT set_config('app.is_super_admin', 'true', false)`);
     await db.exec(`SELECT set_config('app.current_tenant_id', '', false)`);
@@ -119,6 +154,18 @@ describe('RLS isolamento multi-tenant', () => {
     expect(superSecrets.rows).toEqual([]);
     const superSales = await db.query<{ id: string }>('SELECT id FROM sales');
     expect(superSales.rows).toEqual([]);
+    const superHistory = await db.query<{ sale_id: string }>(
+      'SELECT sale_id FROM sale_status_history',
+    );
+    expect(superHistory.rows).toEqual([]);
+    const superWebhooks = await db.query<{ event_id: string }>(
+      'SELECT event_id FROM payment_webhook_events',
+    );
+    expect(superWebhooks.rows).toEqual([]);
+    const superMessages = await db.query<{ occurrence_key: string }>(
+      'SELECT occurrence_key FROM collection_messages',
+    );
+    expect(superMessages.rows).toEqual([]);
 
     await db.exec('RESET ROLE');
     await db.close();

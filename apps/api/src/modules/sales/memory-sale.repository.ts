@@ -1,5 +1,6 @@
 import type { SaleStatus } from '@crediplus/shared';
 import { formatMoney, money, paymentDrivenStatus } from '@crediplus/shared';
+import { v7 as uuidv7 } from 'uuid';
 import type {
   ApplyPaymentResult,
   ApplyReversalResult,
@@ -11,6 +12,7 @@ import type {
   SaleListRow,
   SaleRecord,
   SaleRepository,
+  StatusHistoryRecord,
 } from './sale.types';
 
 export class MemorySaleRepository implements SaleRepository {
@@ -20,6 +22,7 @@ export class MemorySaleRepository implements SaleRepository {
   payments: PaymentRecord[] = [];
   reversals: PaymentReversalRecord[] = [];
   customerNames = new Map<string, string>();
+  history: StatusHistoryRecord[] = [];
 
   async createBundle(input: {
     sale: SaleRecord;
@@ -31,6 +34,28 @@ export class MemorySaleRepository implements SaleRepository {
     this.items.push(...input.items.map((item) => ({ ...item })));
     this.installments.push(...input.installments.map((item) => ({ ...item })));
     this.customerNames.set(input.sale.customerId, input.customerName);
+    this.history.push({
+      id: uuidv7(),
+      entity: 'sale',
+      saleId: input.sale.id,
+      installmentId: null,
+      fromStatus: null,
+      toStatus: input.sale.status,
+      reason: 'created',
+      createdAt: input.sale.createdAt,
+    });
+    for (const installment of input.installments) {
+      this.history.push({
+        id: uuidv7(),
+        entity: 'installment',
+        saleId: input.sale.id,
+        installmentId: installment.id,
+        fromStatus: null,
+        toStatus: installment.status,
+        reason: 'created',
+        createdAt: installment.createdAt,
+      });
+    }
   }
 
   async findSale(tenantId: string, id: string): Promise<SaleListRow | null> {
@@ -122,7 +147,27 @@ export class MemorySaleRepository implements SaleRepository {
     }
     sale.status = 'cancelled';
     sale.updatedAt = at;
+    this.history.push({
+      id: uuidv7(),
+      entity: 'sale',
+      saleId,
+      installmentId: null,
+      fromStatus: 'open',
+      toStatus: 'cancelled',
+      reason: 'cancelled',
+      createdAt: at,
+    });
     for (const installment of related) {
+      this.history.push({
+        id: uuidv7(),
+        entity: 'installment',
+        saleId,
+        installmentId: installment.id,
+        fromStatus: installment.status,
+        toStatus: 'CANCELLED',
+        reason: 'cancelled',
+        createdAt: at,
+      });
       installment.status = 'CANCELLED';
       installment.updatedAt = at;
     }
@@ -153,9 +198,20 @@ export class MemorySaleRepository implements SaleRepository {
       return 'insufficient';
     }
     const paidAmount = formatMoney(money(installment.paidAmount).plus(payment.amount));
+    const nextStatus = paymentDrivenStatus(installment.amount, paidAmount);
     this.payments.push({ ...payment });
+    this.history.push({
+      id: uuidv7(),
+      entity: 'installment',
+      saleId: payment.saleId,
+      installmentId: installment.id,
+      fromStatus: installment.status,
+      toStatus: nextStatus,
+      reason: 'payment',
+      createdAt: payment.createdAt,
+    });
     installment.paidAmount = paidAmount;
-    installment.status = paymentDrivenStatus(installment.amount, paidAmount);
+    installment.status = nextStatus;
     installment.updatedAt = payment.createdAt;
     return 'applied';
   }
@@ -194,8 +250,20 @@ export class MemorySaleRepository implements SaleRepository {
       return 'invalid_amount';
     }
     payment.reversedAmount = formatMoney(money(payment.reversedAmount).plus(amount));
-    installment.paidAmount = formatMoney(money(installment.paidAmount).minus(amount));
-    installment.status = paymentDrivenStatus(installment.amount, installment.paidAmount);
+    const nextPaid = formatMoney(money(installment.paidAmount).minus(amount));
+    const nextStatus = paymentDrivenStatus(installment.amount, nextPaid);
+    this.history.push({
+      id: uuidv7(),
+      entity: 'installment',
+      saleId,
+      installmentId: installment.id,
+      fromStatus: installment.status,
+      toStatus: nextStatus,
+      reason: 'reversal',
+      createdAt: reversal.createdAt,
+    });
+    installment.paidAmount = nextPaid;
+    installment.status = nextStatus;
     installment.updatedAt = reversal.createdAt;
     this.reversals.push({
       id: reversal.id,
@@ -206,5 +274,14 @@ export class MemorySaleRepository implements SaleRepository {
       createdAt: reversal.createdAt,
     });
     return 'applied';
+  }
+
+  async listHistory(tenantId: string, saleId: string): Promise<StatusHistoryRecord[]> {
+    return this.history
+      .filter((item) => {
+        const sale = this.sales.find((row) => row.id === item.saleId);
+        return sale?.tenantId === tenantId && item.saleId === saleId;
+      })
+      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
   }
 }
