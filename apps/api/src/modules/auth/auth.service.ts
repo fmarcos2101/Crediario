@@ -60,6 +60,7 @@ export class AuthService {
     private readonly tenants: TenantService | null = null,
     private readonly loginLimiter = new MemoryRateLimiter(15 * 60 * 1000, 5),
     private readonly resetLimiter = new MemoryRateLimiter(60 * 60 * 1000, 5),
+    private readonly totpLimiter = new MemoryRateLimiter(15 * 60 * 1000, 10),
     private readonly now: () => Date = () => new Date(),
   ) {}
 
@@ -134,6 +135,9 @@ export class AuthService {
     code: string,
     ctx: LoginContext,
   ): Promise<LoginSuccess> {
+    if (!this.totpLimiter.consume(ctx.ip ?? 'unknown', this.now().getTime())) {
+      throw new HttpException(RATE_LIMITED, HttpStatus.TOO_MANY_REQUESTS);
+    }
     const challenge = await this.repo.findChallengeByTokenHash(sha256Hex(challengeToken));
     if (!challenge || challenge.consumedAt || challenge.expiresAt <= this.now()) {
       throw new HttpException(TOTP_INVALID, HttpStatus.UNAUTHORIZED);
@@ -250,14 +254,17 @@ export class AuthService {
   async resetPassword(token: string, password: string, ctx: LoginContext): Promise<void> {
     assertPasswordPolicy(password);
     const record = await this.repo.findPasswordResetByTokenHash(sha256Hex(token));
-    if (!record || record.consumedAt || record.expiresAt <= this.now()) {
+    if (!record) {
       throw new HttpException('Link inválido ou expirado.', HttpStatus.BAD_REQUEST);
     }
     const user = await this.repo.findUserById(record.userId);
     if (!user || user.status !== 'active') {
       throw new HttpException('Link inválido ou expirado.', HttpStatus.BAD_REQUEST);
     }
-    await this.repo.consumePasswordReset(record.id, this.now());
+    const claimed = await this.repo.consumePasswordReset(record.id, this.now());
+    if (!claimed) {
+      throw new HttpException('Link inválido ou expirado.', HttpStatus.BAD_REQUEST);
+    }
     await this.repo.updatePassword(user.id, await hashPassword(password), this.now());
     await this.repo.revokeAllUserSessions(user.id, this.now());
     await this.security(user.id, 'PASSWORD_CHANGED', ctx);

@@ -65,6 +65,7 @@ export class CollectionService {
     private readonly encryptionKey: string | undefined,
     private readonly now: () => Date = () => new Date(),
     private readonly webhookLimiter = new MemoryRateLimiter(60 * 1000, 60),
+    private readonly runLimiter = new MemoryRateLimiter(60 * 1000, 3),
   ) {}
 
   async listMessages(
@@ -89,6 +90,19 @@ export class CollectionService {
       results.push(await this.runTenant(tenant.id, now));
     }
     return results;
+  }
+
+  async runTenantLimited(
+    tenantId: string,
+    now = this.now(),
+  ): Promise<CollectionRunResult> {
+    if (!this.runLimiter.consume(tenantId, now.getTime())) {
+      throw new HttpException(
+        'Muitas tentativas. Tente novamente em instantes.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+    return this.runTenant(tenantId, now);
   }
 
   async runTenant(tenantId: string, now = this.now()): Promise<CollectionRunResult> {
@@ -416,9 +430,9 @@ export class CollectionService {
   }
 
   private brl(value: string): string {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-    }).format(Number(value));
+    const formatted = formatMoney(value);
+    const [intPart, frac] = formatted.split('.');
+    const grouped = (intPart ?? '0').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    return `R$ ${grouped},${frac ?? '00'}`;
   }
 }

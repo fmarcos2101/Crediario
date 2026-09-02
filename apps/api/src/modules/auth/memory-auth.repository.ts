@@ -129,11 +129,13 @@ export class MemoryAuthRepository implements AuthRepository {
     return this.resets.find((item) => item.tokenHash === tokenHash) ?? null;
   }
 
-  async consumePasswordReset(id: string, at: Date): Promise<void> {
+  async consumePasswordReset(id: string, at: Date): Promise<boolean> {
     const record = this.resets.find((item) => item.id === id);
-    if (record) {
-      record.consumedAt = at;
+    if (!record || record.consumedAt || record.expiresAt <= at) {
+      return false;
     }
+    record.consumedAt = at;
+    return true;
   }
 
   async recordLoginAttempt(): Promise<void> {}

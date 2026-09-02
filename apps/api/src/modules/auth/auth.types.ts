@@ -63,7 +63,7 @@ export type AuthRepository = {
   consumeChallenge(id: string, at: Date): Promise<void>;
   createPasswordReset(record: ResetRecord): Promise<void>;
   findPasswordResetByTokenHash(tokenHash: string): Promise<ResetRecord | null>;
-  consumePasswordReset(id: string, at: Date): Promise<void>;
+  consumePasswordReset(id: string, at: Date): Promise<boolean>;
   recordLoginAttempt(input: {
     id: string;
     email: string;

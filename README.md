@@ -6,7 +6,7 @@ Acesso **somente por convite**. Não existe cadastro público.
 
 ## Fase atual
 
-**Fase 1 — infraestrutura**, **Fase 2 — autenticação**, **Fase 3 — multiempresa**, **Fase 4 — Super Admin (metadados)**, **Fase 5 — clientes**, **Fase 6 — vendas** e **Fase 7 — histórico, cobrança e webhook**.
+**Fase 1 — infraestrutura**, **Fase 2 — autenticação**, **Fase 3 — multiempresa**, **Fase 4 — Super Admin (metadados)**, **Fase 5 — clientes**, **Fase 6 — vendas** e **Fase 7 — histórico, cobrança e webhook**. Este recorte é o MVP de crediário. Documentos e assinatura eletrônica (Fases 8–9) ficam para um ciclo próprio: upload, bucket privado e evidência de assinatura não entram aqui.
 
 Configurações de cobrança, mensagens, API de pagamento e API da Meta ficam no painel da empresa (`/app/configuracoes`). Super Admin não vê PII, chaves nem financeiro.
 

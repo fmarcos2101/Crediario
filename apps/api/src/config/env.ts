@@ -43,6 +43,37 @@ const envSchema = z.object({
 
 export type AppEnv = z.infer<typeof envSchema>;
 
+function encryptionKeyBytes(value: string): number {
+  return Buffer.from(value, 'base64').length;
+}
+
+function assertProductionEnv(env: AppEnv): void {
+  if (env.NODE_ENV !== 'production') {
+    return;
+  }
+  const problems: string[] = [];
+  if (!env.COOKIE_SECURE) {
+    problems.push('COOKIE_SECURE deve ser true em produção.');
+  }
+  if (env.COOKIE_DOMAIN) {
+    problems.push('COOKIE_DOMAIN não pode ser usado em produção (__Host-).');
+  }
+  if (!env.APP_ENCRYPTION_KEY) {
+    problems.push('APP_ENCRYPTION_KEY é obrigatória em produção.');
+  } else if (encryptionKeyBytes(env.APP_ENCRYPTION_KEY) !== 32) {
+    problems.push('APP_ENCRYPTION_KEY deve ter 32 bytes em base64.');
+  }
+  if (!env.DATABASE_URL) {
+    problems.push('DATABASE_URL é obrigatória em produção.');
+  }
+  if (env.CORS_ORIGINS.some((origin) => origin === '*')) {
+    problems.push('CORS_ORIGINS não pode conter * em produção.');
+  }
+  if (problems.length > 0) {
+    throw new Error(`Variáveis de ambiente inválidas: ${problems.join(' ')}`);
+  }
+}
+
 export function loadEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
   const parsed = envSchema.safeParse(source);
   if (!parsed.success) {
@@ -51,5 +82,13 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
       .join('; ');
     throw new Error(`Variáveis de ambiente inválidas: ${details}`);
   }
+  if (parsed.data.APP_ENCRYPTION_KEY) {
+    if (encryptionKeyBytes(parsed.data.APP_ENCRYPTION_KEY) !== 32) {
+      throw new Error(
+        'Variáveis de ambiente inválidas: APP_ENCRYPTION_KEY deve ter 32 bytes em base64.',
+      );
+    }
+  }
+  assertProductionEnv(parsed.data);
   return parsed.data;
 }

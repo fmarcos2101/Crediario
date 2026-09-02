@@ -35,4 +35,29 @@ describe('loadEnv', () => {
     expect(env.DATABASE_URL).toBeUndefined();
     expect(env.REDIS_URL).toBeUndefined();
   });
+
+  it('recusa produção sem cookie seguro, chave e banco', () => {
+    expect(() => loadEnv({ NODE_ENV: 'production' })).toThrow(/COOKIE_SECURE/);
+    expect(() =>
+      loadEnv({
+        NODE_ENV: 'production',
+        COOKIE_SECURE: 'true',
+        APP_ENCRYPTION_KEY: Buffer.alloc(32, 1).toString('base64'),
+        DATABASE_URL: 'postgres://crediplus_app@localhost/crediplus',
+        CORS_ORIGINS: '*',
+      }),
+    ).toThrow(/CORS_ORIGINS/);
+  });
+
+  it('aceita produção com os requisitos mínimos', () => {
+    const env = loadEnv({
+      NODE_ENV: 'production',
+      COOKIE_SECURE: 'true',
+      APP_ENCRYPTION_KEY: Buffer.alloc(32, 1).toString('base64'),
+      DATABASE_URL: 'postgres://crediplus_app@localhost/crediplus',
+      CORS_ORIGINS: 'https://app.example.com',
+    });
+    expect(env.COOKIE_SECURE).toBe(true);
+    expect(env.DATABASE_URL).toBeDefined();
+  });
 });

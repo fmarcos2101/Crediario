@@ -2,6 +2,7 @@ import {
   and,
   desc,
   eq,
+  gt,
   isNull,
   loginAttempts,
   loginChallenges,
@@ -186,11 +187,19 @@ export class DrizzleAuthRepository implements AuthRepository {
     return rows[0] ? this.mapReset(rows[0]) : null;
   }
 
-  async consumePasswordReset(id: string, at: Date): Promise<void> {
-    await this.db
+  async consumePasswordReset(id: string, at: Date): Promise<boolean> {
+    const updated = await this.db
       .update(passwordResetTokens)
       .set({ consumedAt: at })
-      .where(eq(passwordResetTokens.id, id));
+      .where(
+        and(
+          eq(passwordResetTokens.id, id),
+          isNull(passwordResetTokens.consumedAt),
+          gt(passwordResetTokens.expiresAt, at),
+        ),
+      )
+      .returning({ id: passwordResetTokens.id });
+    return updated.length > 0;
   }
 
   async recordLoginAttempt(input: {

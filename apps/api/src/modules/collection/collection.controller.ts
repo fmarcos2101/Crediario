@@ -26,7 +26,7 @@ export class CollectionController {
   @Post('run')
   @UseGuards(CsrfGuard)
   run(@Req() request: AuthedRequest) {
-    return this.collection.runTenant(this.requireTenant(request));
+    return this.collection.runTenantLimited(this.requireTenant(request));
   }
 
   private requireTenant(request: AuthedRequest): string {

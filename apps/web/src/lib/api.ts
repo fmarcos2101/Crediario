@@ -21,7 +21,7 @@ export async function apiFetch(path: string, init: RequestInit = {}): Promise<Re
   }
   const method = (init.method ?? 'GET').toUpperCase();
   if (method !== 'GET' && method !== 'HEAD') {
-    const csrf = readCookie('crediplus_csrf');
+    const csrf = readCookie('__Host-crediplus_csrf') ?? readCookie('crediplus_csrf');
     if (csrf) {
       headers.set('X-CSRF-Token', csrf);
     }

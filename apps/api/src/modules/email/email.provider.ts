@@ -17,6 +17,8 @@ export class ConsoleEmailProvider implements EmailProvider {
       return;
     }
     console.info(`[email] to=${message.to} subject=${message.subject}`);
-    console.info(message.text);
+    if (process.env.NODE_ENV === 'development') {
+      console.info(message.text);
+    }
   }
 }

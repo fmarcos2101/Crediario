@@ -45,11 +45,17 @@ export function hmacSha256HexSecret(value: string, secret: string): string {
 
 export function hmacHexMatches(expectedHex: string, provided: string): boolean {
   const normalized = provided.startsWith('sha256=') ? provided.slice(7) : provided;
-  if (expectedHex.length !== normalized.length) {
+  if (expectedHex.length !== normalized.length || expectedHex.length % 2 !== 0) {
+    return false;
+  }
+  if (!/^[0-9a-f]+$/i.test(expectedHex) || !/^[0-9a-f]+$/i.test(normalized)) {
     return false;
   }
   try {
-    return timingSafeEqual(Buffer.from(expectedHex), Buffer.from(normalized));
+    return timingSafeEqual(
+      Buffer.from(expectedHex, 'hex'),
+      Buffer.from(normalized, 'hex'),
+    );
   } catch {
     return false;
   }

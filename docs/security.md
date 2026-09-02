@@ -23,7 +23,11 @@ Nenhum sistema na internet tem risco zero. A meta é reduzir superfície, empilh
 
 ## Webhook de pagamento (Fase 7)
 
-HMAC-SHA256 do corpo cru com o segredo da empresa. Sem cookie, sem CSRF. Comparação constante. Rate limit por IP+tenant. Segredo só em ciphertext.
+HMAC-SHA256 do corpo cru com o segredo da empresa. Sem cookie, sem CSRF. Comparação constante sobre os bytes hex. Rate limit por IP+tenant. Segredo só em ciphertext. Tenant ou segredo ausente: 404. HMAC inválido: 401.
+
+## Produção
+
+A API recusa subir sem `COOKIE_SECURE=true`, `APP_ENCRYPTION_KEY` de 32 bytes, `DATABASE_URL` e CORS sem `*`. Cookie de sessão e CSRF usam prefixo `__Host-` (sem `Domain`). Corpo de e-mail não vai para o log.
 
 ## Multi-tenant (Fase 3)
 
